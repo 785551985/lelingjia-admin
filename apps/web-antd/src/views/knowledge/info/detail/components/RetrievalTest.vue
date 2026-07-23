@@ -16,8 +16,6 @@ import {
   Tag,
   Alert,
   Slider,
-  Typography,
-  TypographyParagraph,
   Drawer,
   Descriptions,
   DescriptionsItem,
@@ -134,7 +132,7 @@ async function handleTest() {
   isSearched.value = true;
   try {
     const res = await knowledgeRetrieval({
-      knowledgeId: props.knowledgeId,
+      knowledgeId: String(props.knowledgeId),
       query: query.value,
       topK: config.value.topK,
       threshold: config.value.similarityThreshold,
@@ -205,9 +203,9 @@ async function handleApplyConfig() {
 }
 
 const tableColumns = [
-  { title: '位次/变动', key: 'rank', width: 100, align: 'center' },
+  { title: '位次/变动', key: 'rank', width: 100, align: 'center' as const },
   { title: '片段内容', dataIndex: 'content', key: 'content', width: '50%' },
-  { title: '得分对比', dataIndex: 'score', key: 'score', align: 'center', width: 140 },
+  { title: '得分对比', dataIndex: 'score', key: 'score', align: 'center' as const, width: 140 },
   { title: '来源文档', dataIndex: 'sourceName', key: 'sourceName', width: '20%' },
 ];
 </script>
@@ -535,6 +533,7 @@ const tableColumns = [
 .line-clamp-3 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

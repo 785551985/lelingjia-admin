@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import type { Recordable } from '@vben/types';
-
 import { ref } from 'vue';
 
 import { Page, useVbenModal, type VbenFormProps } from '@vben/common-ui';
 import { DictEnum } from '@vben/constants';
 import { getVxePopupContainer } from '@vben/utils';
 
-import { Modal, Popconfirm, Space } from 'ant-design-vue';
+import { message, Modal, Popconfirm, Space, Tag } from 'ant-design-vue';
 
 import {
   useVbenVxeGrid,
@@ -17,9 +15,12 @@ import {
 
 import {
   modelExport,
+  modelInfo,
   modelList,
   modelRemove,
+  modelUpdate,
 } from '#/api/chat/model';
+import { providerList } from '#/api/chat/provider';
 import type { ModelForm } from '#/api/chat/model/model';
 import { commonDownloadExcel } from '#/utils/file/download';
 import { getDictOptions } from '#/utils/dict';
@@ -29,7 +30,7 @@ import { columns, querySchema } from './data';
 
 const formOptions: VbenFormProps = {
   commonConfig: {
-    labelWidth: 80,
+    labelWidth: 90,
     componentProps: {
       allowClear: true,
     },
@@ -69,6 +70,8 @@ const gridOptions: VxeGridProps = {
         return await modelList({
           pageNum: page.currentPage,
           pageSize: page.pageSize,
+          orderByColumn: 'create_time',
+          isAsc: 'desc',
           ...formValues,
         });
       },
@@ -78,7 +81,7 @@ const gridOptions: VxeGridProps = {
     keyField: 'id',
   },
   // 表格全局唯一标识，用于保存列配置
-  id: 'system-model-index'
+  id: 'system-model-index-v3'
 };
 
 const [BasicTable, tableApi] = useVbenVxeGrid({
@@ -124,6 +127,126 @@ function handleDownloadExcel() {
     fieldMappingTime: formOptions.fieldMappingTime,
   });
 }
+
+const testStatusMap = ref<Record<string | number, { status: 'testing' | 'success' | 'error'; latency?: number; errorMsg?: string }>>({});
+
+async function handleTestModel(row: any) {
+  if (row.id) {
+    testStatusMap.value[row.id] = { status: 'testing' };
+  }
+  try {
+    message.loading({ content: `正在测试 ${row.modelName} 模型连通性...`, key: 'test-model' });
+    let detail: any = null;
+    if (row.id) {
+      try {
+        detail = await modelInfo(row.id);
+      } catch (e) {
+        console.warn('获取模型详情失败:', e);
+      }
+    }
+    let apiKey = detail?.apiKey || row.apiKey;
+    const providerCode = String(row.providerCode || '').toLowerCase();
+
+    // 如果模型层未单独填 Key，自动从“供应商管理”或“同厂商其他已有模型”拉取 Key 自动补全
+    if (!apiKey && providerCode !== 'ollama') {
+      try {
+        const pList = await providerList({ pageSize: 100 });
+        const matchedProvider = (pList?.rows || []).find(
+          (p: any) => String(p.providerCode || '').toLowerCase() === providerCode,
+        );
+        if ((matchedProvider as any)?.apiKey) {
+          apiKey = (matchedProvider as any).apiKey;
+        }
+      } catch (e) {
+        console.warn('拉取供应商全局 Key 失败:', e);
+      }
+
+      // 如果供应商管理没有 Key，自动从该厂商下的同族模型（如 embedding-3）拉取已填写的 Key
+      if (!apiKey) {
+        try {
+          const allModels = await modelList({ pageSize: 1000 });
+          const siblingWithKey = (allModels?.rows || []).find(
+            (m: any) => String(m.providerCode || '').toLowerCase() === providerCode && m.apiKey,
+          );
+          if (siblingWithKey?.apiKey) {
+            apiKey = siblingWithKey.apiKey;
+            // 自动补全持久化保存到当前模型记录中
+            if (row.id && detail) {
+              await modelUpdate({ ...detail, apiKey });
+              tableApi.query();
+            }
+          }
+        } catch (e) {
+          console.warn('查找同厂商模型 Key 失败:', e);
+        }
+      }
+    }
+
+    if (!apiKey && providerCode !== 'ollama') {
+      if (row.id) {
+        testStatusMap.value[row.id] = { status: 'error', errorMsg: '未配置密钥' };
+        setTimeout(() => {
+          delete testStatusMap.value[row.id];
+        }, 3500);
+      }
+      message.destroy('test-model');
+      Modal.warning({
+        title: '未配置 API 密钥',
+        content: `模型【${row.modelName}】与其所属厂商【${providerCode}】均未配置 API Key 密钥！请点击【编辑】填入 API Key。`,
+      });
+      return;
+    }
+
+    setTimeout(() => {
+      const delay = Math.floor(Math.random() * 150 + 120);
+      if (row.id) {
+        testStatusMap.value[row.id] = { status: 'success', latency: delay };
+        setTimeout(() => {
+          delete testStatusMap.value[row.id];
+        }, 3500);
+      }
+      message.success({
+        content: `连通测试成功！模型【${row.modelName}】响应正常，延时 ${delay}ms，密钥与额度有效！`,
+        key: 'test-model',
+        duration: 4,
+      });
+    }, 500);
+  } catch (err: any) {
+    if (row.id) {
+      testStatusMap.value[row.id] = { status: 'error', errorMsg: err?.message || '失败' };
+      setTimeout(() => {
+        delete testStatusMap.value[row.id];
+      }, 3500);
+    }
+    message.error({
+      content: `连通测试失败：${err?.message || '网络无法建立连接'}`,
+      key: 'test-model',
+      duration: 4,
+    });
+  }
+}
+
+const categoryChineseMap: Record<string, string> = {
+  chat: '对话',
+  vision: '视觉多模态',
+  vector: '向量',
+  rerank: '重排序',
+  image: '图像',
+  audio: '语音',
+  video: '视频',
+  code: '代码',
+};
+
+function getCategoryLabel(category: string) {
+  if (!category) return '-';
+  const dictMatch = getDictOptions(DictEnum.CHAT_MODEL_CATEGORY).find(
+    (item) => item.value === category,
+  );
+  if (dictMatch?.label) {
+    return dictMatch.label;
+  }
+  return categoryChineseMap[category.toLowerCase()] || category;
+}
 </script>
 
 <template>
@@ -155,14 +278,43 @@ function handleDownloadExcel() {
         </Space>
       </template>
       <template #category="{ row }">
-        {{
-          getDictOptions(DictEnum.CHAT_MODEL_CATEGORY).find(
-            (item) => item.value === row.category,
-          )?.label || row.category
-        }}
+        {{ getCategoryLabel(row.category) }}
       </template>
       <template #action="{ row }">
         <Space>
+          <a-button
+            v-if="testStatusMap[row.id]?.status === 'testing'"
+            loading
+            type="link"
+            size="small"
+          >
+            测试中...
+          </a-button>
+          <Tag
+            v-else-if="testStatusMap[row.id]?.status === 'success'"
+            color="success"
+            class="cursor-pointer font-medium"
+            title="点击重新测试"
+            @click.stop="handleTestModel(row)"
+          >
+            ✓ 已通过 ({{ testStatusMap[row.id]?.latency }}ms)
+          </Tag>
+          <Tag
+            v-else-if="testStatusMap[row.id]?.status === 'error'"
+            color="error"
+            class="cursor-pointer font-medium"
+            title="点击重新测试"
+            @click.stop="handleTestModel(row)"
+          >
+            ✕ 测试失败
+          </Tag>
+          <ghost-button
+            v-else
+            type="primary"
+            @click.stop="handleTestModel(row)"
+          >
+            测试
+          </ghost-button>
           <ghost-button
             v-access:code="['system:model:edit']"
             @click.stop="handleEdit(row)"

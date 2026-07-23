@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import type { Recordable } from '@vben/types';
-
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 
 import { Page, useVbenModal, type VbenFormProps } from '@vben/common-ui';
 import { getVxePopupContainer } from '@vben/utils';
 
-import { Image, Modal, Popconfirm, Space, Spin, Switch, Tooltip } from 'ant-design-vue';
+import { Modal, Popconfirm, Space, Switch, Tooltip } from 'ant-design-vue';
 
 import {
   useVbenVxeGrid,
@@ -27,19 +25,54 @@ import { columns, querySchema } from './data';
 
 // 图片预览相关配置
 const preview = ref(true);  // 默认开启预览
-const supportImageList = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+const imageErrorMap = ref<Record<string | number, boolean>>({});
 
-/**
- * 根据扩展名判断是否是图片
- * @param url 文件url或路径
- */
-function isImageFile(url: string) {
-  if (!url) return false;
-  return supportImageList.some((item) =>
-    url.toLocaleLowerCase().includes(item),
-  );
+function handleImageError(id: string | number) {
+  if (id !== undefined && id !== null) {
+    imageErrorMap.value[id] = true;
+  }
 }
 
+const localLogos: Record<string, string> = {
+  deepseek: '/providers/deepseek.svg',
+  zhipu: '/providers/zhipu.svg',
+  qianwen: '/providers/qianwen.svg',
+  alibailian: '/providers/qianwen.svg',
+  ollama: '/providers/ollama.svg',
+  kimi: '/providers/moonshot.svg',
+  moonshot: '/providers/moonshot.svg',
+  baichuan: '/providers/baichuan.svg',
+  baidu: '/providers/baidu.svg',
+  wenxin: '/providers/baidu.svg',
+  claude: '/providers/claude.svg',
+  doubao: '/providers/doubao.svg',
+  gemini: '/providers/gemini.svg',
+  hunyuan: '/providers/hunyuan.svg',
+  minimax: '/providers/minimax.svg',
+  mistral: '/providers/mistral.svg',
+  openai: '/providers/openai.svg',
+  ppio: '/providers/ppio.svg',
+  sensenova: '/providers/sensenova.svg',
+  spark: '/providers/spark.svg',
+  stepfun: '/providers/stepfun.svg',
+  yi: '/providers/yi.svg',
+};
+
+/**
+ * 动态匹配与自动解析 LobeHub 官方大模型图标
+ */
+function getProviderLogoUrl(row: any): string {
+  const icon = row.providerIcon;
+  if (icon && typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('/'))) {
+    return icon;
+  }
+  const code = String(row.providerCode || '').toLowerCase();
+  if (localLogos[code]) {
+    return localLogos[code];
+  }
+  // 自动从 LobeHub 官方 Icon 镜像动态匹配
+  return `https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/${code}-color.svg`;
+}
 const formOptions: VbenFormProps = {
   commonConfig: {
     labelWidth: 80,
@@ -171,25 +204,13 @@ function handleDownloadExcel() {
         </Space>
       </template>
       <template #providerIcon="{ row }">
-        <Image
-          v-if="preview && isImageFile(row.providerIcon)"
-          :key="row.id"
-          :src="row.providerIcon"
-          height="35px"
-          width="35px"
-          style="object-fit: cover"
-          preview
-        >
-          <template #placeholder>
-            <div class="flex size-full items-center justify-center">
-              <Spin />
-            </div>
-          </template>
-        </Image>
-        <span v-else-if="isImageFile(row.providerIcon)" class="text-blue-500 cursor-pointer">
-          {{ row.providerIcon.split('/').pop() }}
-        </span>
-        <span v-else>{{ row.providerIcon }}</span>
+        <div class="flex items-center justify-center">
+          <img
+            v-if="getProviderLogoUrl(row)"
+            :src="getProviderLogoUrl(row)"
+            style="width: 34px; height: 34px; object-fit: contain; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.12);"
+          />
+        </div>
       </template>
       <template #action="{ row }">
         <Space>

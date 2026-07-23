@@ -24,6 +24,8 @@ export const columns: VxeGridProps['columns'] = [
   {
     title: '厂商图标',
     field: 'providerIcon',
+    width: 90,
+    align: 'center',
     slots: { default: 'providerIcon' },
   },
   {

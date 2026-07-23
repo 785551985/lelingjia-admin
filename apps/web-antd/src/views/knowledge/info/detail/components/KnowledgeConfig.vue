@@ -20,9 +20,6 @@ import {
   Slider,
   TreeSelect,
   Badge,
-  Card,
-  Descriptions,
-  DescriptionsItem,
   Tag
 } from 'ant-design-vue';
 import { QuestionCircleOutlined, DownOutlined, UpOutlined, FileTextOutlined, TableOutlined, CodeOutlined } from '@ant-design/icons-vue';
@@ -173,7 +170,7 @@ async function loadData() {
       }
       formData.value = {
         ...filterRecord,
-        id: typeof props.knowledgeId === 'string' ? Number(props.knowledgeId) : props.knowledgeId,
+        id: String(props.knowledgeId),
       };
       loadedSplitConfig.value = splitConfigKey(filterRecord);
     } else {
@@ -231,8 +228,13 @@ async function handleSubmit() {
       }
     }
     
+    delete data.createTime;
+    delete data.create_time;
+    delete data.updateTime;
+    delete data.update_time;
+
     if (props.knowledgeId) {
-      data.id = typeof props.knowledgeId === 'string' ? Number(props.knowledgeId) : props.knowledgeId;
+      data.id = String(props.knowledgeId);
     }
     
     if (isUpdate.value) {
@@ -341,7 +343,7 @@ const thresholdMarks = {
       </FormItem>
 
       <FormItem label="公开范围" v-bind="validateInfos.share">
-        <RadioGroup v-model:value="formData.share" button-style="solid" size="middle">
+        <RadioGroup v-model:value="formData.share" button-style="solid" size="default">
           <RadioButton v-for="opt in shareOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </RadioButton>
