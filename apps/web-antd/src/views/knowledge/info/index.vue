@@ -182,8 +182,8 @@ function handleDownloadExcel() {
 
       <!-- 公开范围列插槽 -->
       <template #share="{ row }">
-        <Tag v-if="row.share === 1" color="blue">对内公开</Tag>
-        <Tag v-else-if="row.share === 2" color="purple">对外公开</Tag>
+        <Tag v-if="Number(row.share) === 1" color="blue">对内公开</Tag>
+        <Tag v-else-if="Number(row.share) === 2" color="purple">对外公开</Tag>
         <Tag v-else color="default">仅自己可见</Tag>
       </template>
 
