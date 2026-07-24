@@ -2,7 +2,7 @@ import type { FormSchemaGetter } from '#/adapter/form';
 import type { VxeGridProps } from '#/adapter/vxe-table';
 
 import {
-  agentKnowledgeOptions,
+  agentKnowledgeTreeOptions,
   agentMcpToolOptions,
   agentModelOptions,
   agentSkillOptions,
@@ -167,17 +167,20 @@ export const drawerSchema: FormSchemaGetter = () => [
     label: '关联技能',
   },
   {
-    component: 'ApiSelect',
+    component: 'ApiTreeSelect',
     componentProps: {
-      api: agentKnowledgeOptions,
-      resultField: 'rows',
-      labelField: 'name',
-      valueField: 'id',
-      mode: 'multiple',
-      placeholder: '请选择关联的知识库',
+      api: agentKnowledgeTreeOptions,
+      treeCheckable: true,
+      treeCheckStrictly: false,
+      treeDefaultExpandAll: true,
+      showCheckedStrategy: 'SHOW_CHILD',
+      placeholder: '请选择关联的知识库（留空默认自动检索当前员工全量权限知识库）',
+      showSearch: true,
+      treeNodeFilterProp: 'title',
     },
     fieldName: 'knowledgeIds',
     formItemClass: 'col-span-2',
+    helpMessage: '💡 留空说明：留空表示不限定具体知识库，提问时将自动按数据权限检索当前员工可见的所有知识库（集团级、机构级、部门级、个人私有级）。',
     label: '关联知识库',
   },
   {

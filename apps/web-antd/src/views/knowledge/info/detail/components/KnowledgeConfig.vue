@@ -2,7 +2,7 @@
 import type { RuleObject } from 'ant-design-vue/es/form';
 import type { InfoForm } from '#/api/knowledge/info/model';
 
-import { ref, watch, h } from 'vue';
+import { ref, computed, watch, h } from 'vue';
 import { cloneDeep } from '@vben/utils';
 
 import {
@@ -130,6 +130,54 @@ async function fetchDeptTreeData() {
     console.error('Failed to fetch dept tree:', error);
   }
 }
+
+/**
+ * 根据作用域级别 (2:机构级, 3:部门级) 严格按组织层级隔离树节点
+ */
+const computedDeptTreeData = computed(() => {
+  if (!deptTreeData.value || deptTreeData.value.length === 0) return [];
+
+  const level = formData.value.scopeLevel;
+
+  const processNodeByDepth = (node: any, depth: number): any => {
+    const item = { ...node };
+    const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+
+    if (level === 2) {
+      // 机构级：只保留机构/分公司节点 (depth = 2)，彻底剥离下属部门节点 (depth >= 3)
+      if (depth === 1 && hasChildren) {
+        // 顶级集团/租户根节点 (如 乐龄家大健康科技)：递归保留机构子节点，根节点不可勾选
+        item.disabled = true;
+        item.disableCheckbox = true;
+        item.selectable = false;
+        item.children = node.children.map((child: any) => processNodeByDepth(child, depth + 1));
+      } else {
+        // 机构节点 (如 深圳总公司、长沙分公司)：剥离部门列表，成为可勾选的机构节点
+        item.children = undefined;
+        item.disabled = false;
+        item.disableCheckbox = false;
+        item.selectable = true;
+        item.isLeaf = true;
+      }
+    } else if (level === 3) {
+      // 部门级：仅可选择底层具体部门节点，父级机构节点仅做展开展项且禁止勾选
+      if (hasChildren) {
+        item.disabled = true;
+        item.disableCheckbox = true;
+        item.selectable = false;
+        item.children = node.children.map((child: any) => processNodeByDepth(child, depth + 1));
+      } else {
+        item.disabled = false;
+        item.disableCheckbox = false;
+        item.selectable = true;
+      }
+    }
+
+    return item;
+  };
+
+  return deptTreeData.value.map((rootNode: any) => processNodeByDepth(rootNode, 1));
+});
 
 async function fetchRerankModels() {
   try {
@@ -356,11 +404,11 @@ const thresholdMarks = {
           <Select v-model:value="formData.scopeLevel" :options="scopeLevelOptions" placeholder="请选择对内公开的级别" />
         </FormItem>
         
-        <FormItem v-if="formData.scopeLevel === 3" label="可见部门" v-bind="validateInfos.deptScope">
+        <FormItem v-if="formData.scopeLevel === 2 || formData.scopeLevel === 3" :label="formData.scopeLevel === 2 ? '可见机构' : '可见部门'" v-bind="validateInfos.deptScope">
           <TreeSelect
             v-model:value="formData.deptScope"
-            :tree-data="deptTreeData"
-            placeholder="请选择可见部门（支持多选）"
+            :tree-data="computedDeptTreeData"
+            :placeholder="formData.scopeLevel === 2 ? '请选择可见的分支机构（仅展示机构）' : '请选择可见的具体部门（父级机构不可选）'"
             multiple
             tree-default-expand-all
             allow-clear

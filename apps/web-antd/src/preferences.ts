@@ -23,7 +23,7 @@ export const overridesPreferences = defineOverridesPreferences({
     /**
      * 在这里设置应用标题
      */
-    name: import.meta.env.VITE_APP_TITLE,
+    name: '乐龄家知识库',
     /**
      * 不支持modal模式 需要改动的地方太多
      * 1. 正常重新登录后不会再触发接口请求 即触发登录超时的页面为空数据

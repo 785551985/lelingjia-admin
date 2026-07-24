@@ -75,6 +75,12 @@ onMounted(() => notifyStore.startListeningMessage());
 function handleViewAll() {
   message.warning('暂未开放');
 }
+function openKnowledgeChat() {
+  const token = accessStore.accessToken || localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+  const targetUrl = `http://localhost:5173/${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  window.open(targetUrl, '_blank');
+}
+
 watch(
   () => ({
     enable: preferences.app.watermark,
@@ -100,6 +106,13 @@ watch(
 <template>
   <BasicLayout @clear-preferences-and-logout="handleLogout">
     <template #header-right-1>
+      <a-button
+        size="small"
+        class="go-chat-btn"
+        @click="openKnowledgeChat"
+      >
+        进入问答客户端
+      </a-button>
       <TenantToggle />
     </template>
     <template #user-dropdown>
@@ -135,3 +148,22 @@ watch(
     </template>
   </BasicLayout>
 </template>
+
+<style scoped>
+.go-chat-btn {
+  margin-right: 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #409eff;
+  border-color: #a0cfff;
+  background-color: #ecf5ff;
+  transition: all 0.2s ease-in-out;
+}
+
+.go-chat-btn:hover,
+.go-chat-btn:focus {
+  color: #ffffff !important;
+  border-color: #409eff !important;
+  background-color: #409eff !important;
+}
+</style>

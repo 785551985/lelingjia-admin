@@ -198,33 +198,36 @@ function handleDownloadExcel() {
 
       <!-- 归属主体列插槽 -->
       <template #deptScope="{ row }">
-        <!-- 个人私有级：精简展示，气泡提示个人资产信息 -->
+        <!-- 个人私有级：清晰展示个人私有标签，悬浮气泡展示创建者姓名 -->
         <template v-if="Number(row.scopeLevel) === 4 || row.share === 0 || row.share === '0'">
-          <Tooltip :title="'个人专属资产: ' + (row.createByName || row.createBy || '管理员')">
-            <Tag color="default">
-              {{ row.createByName || row.createBy || '管理员' }}
+          <Tooltip :title="'个人专属私有资产，仅创建者本人可见: ' + (row.createByName || '当前用户')">
+            <Tag color="purple">
+              个人私有 {{ row.createByName ? `(${row.createByName})` : '' }}
             </Tag>
           </Tooltip>
         </template>
+
         <!-- 集团级 -->
         <template v-else-if="Number(row.scopeLevel) === 1">
-          <Tooltip title="全集团各分公司及下属部门均可访问">
+          <Tooltip title="全集团共享，所有分公司及下属部门均可访问">
             <Tag color="cyan">全集团共享</Tag>
           </Tooltip>
         </template>
+
         <!-- 机构级：气泡提示机构全称 -->
         <template v-else-if="Number(row.scopeLevel) === 2">
-          <Tooltip :title="'全机构共享: ' + (row.deptName || row.companyName || '绍兴分公司')">
+          <Tooltip :title="'全机构共享: ' + (getDeptFullPaths(row.deptScope) || row.deptName || '分支机构')">
             <Tag color="green">
-              {{ row.deptName || row.companyName || '绍兴分公司' }}
+              {{ getDeptShortNames(row.deptScope) || row.deptName || '分支机构' }}
             </Tag>
           </Tooltip>
         </template>
+
         <!-- 部门级：表格展示精简名称，悬浮弹窗展现完整层级路径 -->
         <template v-else-if="Number(row.scopeLevel) === 3 || row.deptScope">
           <Tooltip :title="'完整组织层级路径: ' + (getDeptFullPaths(row.deptScope) || '未指定部门')">
             <Tag color="orange">
-              {{ getDeptShortNames(row.deptScope) ? getDeptShortNames(row.deptScope) : '特定部门' }}
+              {{ getDeptShortNames(row.deptScope) || '特定部门' }}
             </Tag>
           </Tooltip>
         </template>

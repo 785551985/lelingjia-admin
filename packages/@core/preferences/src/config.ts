@@ -27,7 +27,7 @@ const defaultPreferences: Preferences = {
     layout: 'sidebar-nav',
     locale: 'zh-CN',
     loginExpiredMode: 'page',
-    name: 'RuoYI AI Admin',
+    name: '乐龄家知识库',
     preferencesButtonPosition: 'auto',
     watermark: false,
     watermarkContent: '',

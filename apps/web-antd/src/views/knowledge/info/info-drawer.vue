@@ -23,11 +23,23 @@ import {
 import { pick } from 'lodash-es';
 import { DownOutlined, UpOutlined } from '@ant-design/icons-vue';
 
+import { useUserStore } from '@vben/stores';
+
 import { infoAdd, infoInfo, infoUpdate } from '#/api/knowledge/info';
 import { embeddingModelList, rerankModelList } from '#/api/chat/model';
 import { getDeptTree } from '#/api/system/user';
 
 const emit = defineEmits<{ reload: [] }>();
+
+const userStore = useUserStore();
+const currentUserDeptName = computed(() => {
+  const info: any = userStore.userInfo || {};
+  return info.deptName || info.dept?.deptName || '';
+});
+const currentUserDeptId = computed(() => {
+  const info: any = userStore.userInfo || {};
+  return info.deptId || info.dept?.deptId;
+});
 
 const visible = ref(false);
 const loading = ref(false);
@@ -126,6 +138,71 @@ async function fetchDeptTreeData() {
     console.error('Failed to fetch dept tree:', error);
   }
 }
+
+/**
+ * 根据作用域级别 (2:机构级, 3:部门级) 严格限制节点可选状态
+ */
+const computedDeptTreeData = computed(() => {
+  if (!deptTreeData.value || deptTreeData.value.length === 0) return [];
+
+  const level = formData.value.scopeLevel;
+
+  const processNode = (node: any): any => {
+    const item = { ...node };
+    const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+
+    if (level === 2) {
+      // 机构级：只保留机构节点（如 深圳总公司、长沙分公司），剥离下属部门节点
+      if (hasChildren) {
+        const firstChildName = node.children[0]?.label || node.children[0]?.title || '';
+        const childrenAreDepts = !/公司|机构|分院|总院/.test(firstChildName);
+
+        if (childrenAreDepts) {
+          // 机构节点：剥离部门列表，成为可勾选的机构节点
+          item.children = undefined;
+          item.disabled = false;
+          item.disableCheckbox = false;
+          item.selectable = true;
+          item.isLeaf = true;
+        } else {
+          // 根分组节点（如 乐龄家大健康科技）：递归保留机构子节点，根节点不可勾选
+          item.disabled = true;
+          item.disableCheckbox = true;
+          item.selectable = false;
+          item.children = node.children.map((child: any) => processNode(child));
+        }
+      } else {
+        item.disabled = false;
+        item.disableCheckbox = false;
+        item.selectable = true;
+      }
+    } else if (level === 3) {
+      // 部门级：仅可选择具体部门节点，父级机构节点作为容器禁止勾选
+      if (hasChildren) {
+        item.disabled = true;
+        item.disableCheckbox = true;
+        item.selectable = false;
+        item.children = node.children.map((child: any) => processNode(child));
+      } else {
+        item.disabled = false;
+        item.disableCheckbox = false;
+        item.selectable = true;
+      }
+    }
+
+    return item;
+  };
+
+  return deptTreeData.value.map((rootNode: any) => processNode(rootNode));
+});
+
+watch(() => formData.value.scopeLevel, (level) => {
+  if ((level === 2 || level === 3) && (!formData.value.deptScope || (Array.isArray(formData.value.deptScope) && formData.value.deptScope.length === 0))) {
+    if (currentUserDeptId.value) {
+      formData.value.deptScope = [currentUserDeptId.value];
+    }
+  }
+});
 
 async function fetchRerankModels() {
   try {
@@ -283,11 +360,14 @@ defineExpose({
           <Select v-model:value="formData.scopeLevel" :options="scopeLevelOptions" placeholder="请选择对内公开的级别" />
         </FormItem>
         
-        <FormItem v-if="formData.scopeLevel === 3" label="可见部门" v-bind="validateInfos.deptScope">
+        <FormItem v-if="formData.scopeLevel === 2 || formData.scopeLevel === 3" :label="formData.scopeLevel === 2 ? '可见机构' : '可见部门'" v-bind="validateInfos.deptScope">
+          <div v-if="currentUserDeptName" class="mb-2.5 px-3 py-1.5 bg-blue-50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 rounded text-xs flex items-center gap-1.5 border border-blue-100 dark:border-zinc-700">
+            <span>已根据您的权限身份自动锁定/预填归属：<strong>{{ currentUserDeptName }}</strong>（管理员可多选调整）</span>
+          </div>
           <TreeSelect
             v-model:value="formData.deptScope"
-            :tree-data="deptTreeData"
-            placeholder="请选择可见部门（支持多选）"
+            :tree-data="computedDeptTreeData"
+            :placeholder="formData.scopeLevel === 2 ? '请选择可见的分支机构（仅展示机构）' : '请选择可见的具体部门（父级机构不可选）'"
             multiple
             tree-default-expand-all
             allow-clear

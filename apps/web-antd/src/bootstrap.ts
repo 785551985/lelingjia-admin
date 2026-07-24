@@ -49,6 +49,21 @@ async function bootstrap(namespace: string) {
   // 配置 pinia-tore
   await initStores(app, { namespace });
 
+  // 处理从问答客户端 (5173) 单点跳转回来的免登 Token
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+      const cleanToken = decodeURIComponent(token).replace(/^Bearer\s+/i, '');
+      const { useAccessStore } = await import('@vben/stores');
+      useAccessStore().setAccessToken(cleanToken);
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  } catch (e) {
+    console.warn('解析单点登录Token失败:', e);
+  }
+
   // 安装权限指令
   registerAccessDirective(app);
 
