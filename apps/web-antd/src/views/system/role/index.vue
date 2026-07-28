@@ -124,6 +124,12 @@ const { hasAccessByCodes, hasAccessByRoles } = useAccess();
 
 const isSuperAdmin = computed(() => hasAccessByRoles(['superadmin']));
 
+// 管理员级别角色（集团管理员、机构管理员）绝对不能删除
+const cannotDeleteRole = (roleKey?: string) => {
+  if (!roleKey) return false;
+  return ['admin', 'tenant_admin', 'inst_admin'].includes(roleKey);
+};
+
 const [RoleAuthModal, authModalApi] = useVbenModal({
   connectedComponent: roleAuthModal,
 });
@@ -174,53 +180,43 @@ function handleAssignRole(record: Role) {
           :api="() => roleChangeStatus(row)"
           :disabled="
             row.roleId === 1 ||
-            row.roleKey === 'admin' ||
+            cannotDeleteRole(row.roleKey) ||
             !hasAccessByCodes(['system:role:edit'])
           "
           @reload="tableApi.query()"
         />
       </template>
       <template #action="{ row }">
-        <!-- 租户管理员不可修改admin角色 防止误操作 -->
-        <!-- 超级管理员可通过租户切换来操作租户管理员角色 -->
-        <template
-          v-if="!row.superAdmin && (row.roleKey !== 'admin' || isSuperAdmin)"
-        >
-          <Space>
+        <Space>
+          <ghost-button
+            v-access:code="['system:role:edit']"
+            @click.stop="handleEdit(row)"
+          >
+            {{ $t('pages.common.edit') }}
+          </ghost-button>
+          <ghost-button
+            v-access:code="['system:role:edit']"
+            @click.stop="handleAuthEdit(row)"
+          >
+            权限
+          </ghost-button>
+          <!-- 管理员级别角色（集团管理员、机构管理员）不能删除；其他角色均可删除 -->
+          <Popconfirm
+            v-if="!row.superAdmin && !cannotDeleteRole(row.roleKey)"
+            :get-popup-container="getVxePopupContainer"
+            placement="left"
+            title="确认删除？"
+            @confirm="handleDelete(row)"
+          >
             <ghost-button
-              v-access:code="['system:role:edit']"
-              @click.stop="handleEdit(row)"
+              danger
+              v-access:code="['system:role:remove']"
+              @click.stop=""
             >
-              {{ $t('pages.common.edit') }}
+              {{ $t('pages.common.delete') }}
             </ghost-button>
-            <ghost-button
-              v-access:code="['system:role:edit']"
-              @click.stop="handleAuthEdit(row)"
-            >
-              权限
-            </ghost-button>
-            <ghost-button
-              v-access:code="['system:role:edit']"
-              @click.stop="handleAssignRole(row)"
-            >
-              分配
-            </ghost-button>
-            <Popconfirm
-              :get-popup-container="getVxePopupContainer"
-              placement="left"
-              title="确认删除？"
-              @confirm="handleDelete(row)"
-            >
-              <ghost-button
-                danger
-                v-access:code="['system:role:remove']"
-                @click.stop=""
-              >
-                {{ $t('pages.common.delete') }}
-              </ghost-button>
-            </Popconfirm>
-          </Space>
-        </template>
+          </Popconfirm>
+        </Space>
       </template>
     </BasicTable>
     <RoleDrawer @reload="tableApi.query()" />

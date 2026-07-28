@@ -16,12 +16,11 @@ import { getDictOptions } from '#/utils/dict';
  * authScopeOptions user也会用到
  */
 export const authScopeOptions = [
-  { color: 'green', label: '全部数据权限', value: '1' },
-  { color: 'default', label: '自定数据权限', value: '2' },
-  { color: 'orange', label: '本部门数据权限', value: '3' },
-  { color: 'cyan', label: '本部门及以下数据权限', value: '4' },
+  { color: 'green', label: '本集团及以下数据权限 (全部)', value: '1' },
+  { color: 'cyan', label: '本机构及以下数据权限', value: '4' },
+  { color: 'orange', label: '本部门及以下数据权限', value: '3' },
   { color: 'error', label: '仅本人数据权限', value: '5' },
-  { color: 'default', label: '部门及以下或本人数据权限', value: '6' },
+  { color: 'default', label: '自定数据权限 (手动勾选部门)', value: '2' },
 ];
 
 export const querySchema: FormSchemaGetter = () => [
@@ -70,13 +69,26 @@ export const columns: VxeGridProps['columns'] = [
     field: 'dataScope',
     slots: {
       default: ({ row }) => {
-        const found = authScopeOptions.find(
-          (item) => item.value === row.dataScope,
-        );
-        if (found) {
-          return <Tag color={found.color}>{found.label}</Tag>;
+        let label = '';
+        let color = 'default';
+
+        if (row.dataScope === '1') {
+          color = 'green';
+          label = row.roleKey === 'superadmin' ? '全平台数据权限 (全部)' : '本集团及以下数据权限 (全部)';
+        } else if (row.dataScope === '4') {
+          color = 'cyan';
+          if (row.roleKey === 'inst_admin' || (row.roleName && row.roleName.includes('机构'))) {
+            label = '本机构及以下数据权限';
+          } else {
+            label = '本部门及以下数据权限';
+          }
+        } else {
+          const found = authScopeOptions.find((item) => item.value === row.dataScope);
+          label = found ? found.label : row.dataScope;
+          color = found ? found.color : 'default';
         }
-        return <Tag>{row.dataScope}</Tag>;
+
+        return <Tag color={color}>{label}</Tag>;
       },
     },
   },

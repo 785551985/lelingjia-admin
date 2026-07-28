@@ -64,12 +64,36 @@ function genRoleOptionlabel(role: Role) {
 /**
  * 岗位的加载
  */
-async function setupPostOptions(deptId: number | string) {
-  const postListResp = await postOptionSelect(deptId);
-  const options = postListResp.map((item) => ({
-    label: item.postName,
-    value: item.postId,
-  }));
+async function setupPostOptions(deptId: number | string, existingPosts: any[] = []) {
+  const optionsMap = new Map<number | string, { label: string; value: number | string }>();
+  
+  // 优先放入已关联的岗位，确保已被选中的岗位名称不丢失
+  (existingPosts || []).forEach((item) => {
+    if (item && item.postId != null) {
+      optionsMap.set(item.postId, {
+        label: item.postName || String(item.postId),
+        value: item.postId,
+      });
+    }
+  });
+
+  if (deptId) {
+    try {
+      const postListResp = await postOptionSelect(deptId);
+      (postListResp || []).forEach((item) => {
+        if (item && item.postId != null) {
+          optionsMap.set(item.postId, {
+            label: item.postName,
+            value: item.postId,
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('获取部门岗位列表失败', e);
+    }
+  }
+
+  const options = Array.from(optionsMap.values());
   const placeholder = options.length > 0 ? '请选择' : '该部门下暂无岗位';
   formApi.updateSchema([
     {
@@ -207,7 +231,7 @@ const [BasicDrawer, drawerApi] = useVbenDrawer({
         formApi.setFieldValue('postIds', postIds),
         formApi.setFieldValue('roleIds', roleIds),
         // 更新时不会触发onSelect 需要手动调用
-        setupPostOptions(user.deptId),
+        setupPostOptions(user.deptId, posts),
       );
     }
     // 并行处理 重构后会带来10-50ms的优化

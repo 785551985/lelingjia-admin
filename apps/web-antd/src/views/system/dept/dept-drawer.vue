@@ -15,7 +15,7 @@ import {
   deptNodeList,
   deptUpdate,
 } from '#/api/system/dept';
-import { listUserByDeptId } from '#/api/system/user';
+import { listUserByDeptId, userList } from '#/api/system/user';
 import { defaultFormValueGetter, useBeforeCloseDiff } from '#/utils/popup';
 
 import { drawerSchema } from './data';
@@ -76,11 +76,15 @@ async function initDeptSelect(deptId?: number | string) {
 }
 
 /**
- * 部门管理员下拉框 更新时才会enable
+ * 部门管理员下拉框 随时支持选择与编辑
  * @param deptId
  */
-async function initDeptUsers(deptId: number | string) {
-  const ret = await listUserByDeptId(deptId);
+async function initDeptUsers(deptId?: number | string) {
+  let ret = deptId ? await listUserByDeptId(deptId) : [];
+  if (ret.length === 0) {
+    const res = await userList({ pageNum: 1, pageSize: 500 });
+    ret = (res as any).rows || (res as any).items || [];
+  }
   const options = ret.map((user) => ({
     label: `${user.userName} | ${user.nickName}`,
     value: user.userId,
@@ -88,9 +92,9 @@ async function initDeptUsers(deptId: number | string) {
   formApi.updateSchema([
     {
       componentProps: {
-        disabled: ret.length === 0,
+        disabled: false,
         options,
-        placeholder: ret.length === 0 ? '该部门暂无用户' : '请选择部门负责人',
+        placeholder: '请选择部门负责人',
       },
       fieldName: 'leader',
     },
@@ -98,16 +102,7 @@ async function initDeptUsers(deptId: number | string) {
 }
 
 async function setLeaderOptions() {
-  formApi.updateSchema([
-    {
-      componentProps: {
-        disabled: true,
-        options: [],
-        placeholder: '仅在更新时可选部门负责人',
-      },
-      fieldName: 'leader',
-    },
-  ]);
+  await initDeptUsers();
 }
 
 const { onBeforeClose, markInitialized, resetInitialized } = useBeforeCloseDiff(
