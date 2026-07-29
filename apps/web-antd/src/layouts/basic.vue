@@ -77,7 +77,8 @@ function handleViewAll() {
 }
 function openKnowledgeChat() {
   const token = accessStore.accessToken || localStorage.getItem('access_token') || localStorage.getItem('token') || '';
-  const targetUrl = `http://localhost:5173/${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  const baseUrl = import.meta.env.DEV ? 'http://localhost:5173/' : 'http://chat.ylglxt.cn/';
+  const targetUrl = `${baseUrl}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   window.open(targetUrl, '_blank');
 }
 
