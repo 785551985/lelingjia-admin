@@ -34,7 +34,8 @@ export const useAuthStore = defineStore('auth', () => {
     params: LoginAndRegisterParams,
     onSuccess?: () => Promise<void> | void,
   ) {
-    // 异步处理用户登录操作并获取 accessToken
+    // 预加载 router 模块提升导航速度
+    const routerPromise = import('#/router');
     let userInfo: null | UserInfo = null;
     try {
       loginLoading.value = true;
@@ -58,7 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (accessStore.loginExpired) {
         accessStore.setLoginExpired(false);
       } else {
-        const { router } = await import('#/router');
+        const { router } = await routerPromise;
         onSuccess
           ? await onSuccess?.()
           : await router.push(preferences.app.defaultHomePath);
