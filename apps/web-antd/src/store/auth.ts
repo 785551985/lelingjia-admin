@@ -121,10 +121,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
     const { permissions = [], roles = [], user, companyName } = backUserInfo as any;
 
-    // 左上角恢复为标准简洁的产品名称“乐龄家知识库”，避免长名称截断
     updatePreferences({
       app: {
-        name: '乐龄家知识库',
+        name: '企业知识库',
       },
     });
 
