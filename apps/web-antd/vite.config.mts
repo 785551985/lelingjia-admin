@@ -7,7 +7,9 @@ import { resolve } from 'path';
 
 export default defineConfig(async () => {
   return {
-    application: {},
+    application: {
+      compress: true,
+    },
     vite: {
       resolve: {
         alias: [
@@ -56,8 +58,8 @@ export default defineConfig(async () => {
         noExternal: ['jiti'],
       },
       build: {
-        minify: false,
-        sourcemap: true,
+        minify: true,
+        sourcemap: false,
         commonjsOptions: {
           transformMixedEsModules: true,
         },
@@ -74,6 +76,8 @@ export default defineConfig(async () => {
                 'pinia-plugin-persistedstate',
                 '@vben/stores',
               ],
+              'vendor-antd': ['ant-design-vue', '@ant-design/icons-vue'],
+              'vendor-echarts': ['echarts'],
             },
           },
         },
