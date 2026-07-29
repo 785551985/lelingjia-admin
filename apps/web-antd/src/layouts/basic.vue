@@ -22,7 +22,7 @@ import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 import { openWindow } from '@vben/utils';
 
-import { message } from 'ant-design-vue';
+import { message, Tag, Tooltip } from 'ant-design-vue';
 
 import { TenantToggle } from '#/components/tenant-toggle';
 import { $t } from '#/locales';
@@ -106,6 +106,14 @@ watch(
 <template>
   <BasicLayout @clear-preferences-and-logout="handleLogout">
     <template #header-right-1>
+      <!-- 对应租户/机构名称及企业ID显示组件 -->
+      <div v-if="(userStore.userInfo as any)?.companyName" class="tenant-info-badge">
+        <span class="tenant-name">{{ (userStore.userInfo as any)?.companyName }}</span>
+        <Tag v-if="(userStore.userInfo as any)?.tenantId" color="processing" class="tenant-id-tag">
+          ID: {{ (userStore.userInfo as any)?.tenantId }}
+        </Tag>
+      </div>
+
       <a-button
         size="small"
         class="go-chat-btn"
@@ -150,6 +158,34 @@ watch(
 </template>
 
 <style scoped>
+.tenant-info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+  padding: 3px 10px;
+  background: #f0f7ff;
+  border: 1px solid #bae0ff;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #0958d9;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tenant-info-badge:hover {
+  background: #e6f4ff;
+  border-color: #91caef;
+}
+
+.tenant-id-tag {
+  margin-left: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 4px;
+}
+
 .go-chat-btn {
   margin-right: 12px;
   border-radius: 6px;

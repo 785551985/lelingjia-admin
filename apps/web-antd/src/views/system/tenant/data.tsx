@@ -122,8 +122,8 @@ export const drawerSchema: FormSchemaGetter = () => [
     rules: 'required',
     componentProps: {
       options: [
-        { label: '集团级企业 (自动配置: 集团超管/集团管理员/机构管理员/部门主管/普通员工)', value: 'GROUP' },
-        { label: '单体机构/诊所 (自动配置: 机构超管/机构管理员/部门主管/普通员工)', value: 'INST' },
+        { label: '集团级企业 (自动配置: 集团管理员/机构管理员/部门主管/普通员工)', value: 'GROUP' },
+        { label: '单体机构/诊所 (自动配置: 机构管理员/部门主管/普通员工)', value: 'INST' },
       ],
     },
   },

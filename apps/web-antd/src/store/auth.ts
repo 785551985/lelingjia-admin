@@ -5,7 +5,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/constants';
-import { preferences } from '@vben/preferences';
+import { preferences, updatePreferences } from '@vben/preferences';
 import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
 
 import { notification } from 'ant-design-vue';
@@ -119,11 +119,19 @@ export const useAuthStore = defineStore('auth', () => {
     if (!backUserInfo) {
       throw new Error('获取用户信息失败.');
     }
-    const { permissions = [], roles = [], user } = backUserInfo;
+    const { permissions = [], roles = [], user, companyName } = backUserInfo as any;
+
+    // 左上角恢复为标准简洁的产品名称“乐龄家知识库”，避免长名称截断
+    updatePreferences({
+      app: {
+        name: '乐龄家知识库',
+      },
+    });
+
     /**
      * 从后台user -> vben user转换
      */
-    const userInfo: UserInfo = {
+    const userInfo: UserInfo & { companyName?: string; tenantId?: string } = {
       avatar: user.avatar ?? '',
       permissions,
       realName: user.nickName,
@@ -131,6 +139,8 @@ export const useAuthStore = defineStore('auth', () => {
       userId: user.userId,
       username: user.userName,
       email: user.email ?? '',
+      companyName: companyName || user.dept?.deptName || '',
+      tenantId: user.tenantId || '',
     };
     userStore.setUserInfo(userInfo);
     /**
