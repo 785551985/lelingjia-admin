@@ -1,11 +1,15 @@
 import type { Pinia } from 'pinia';
-
 import type { App } from 'vue';
 
-import { createPinia } from 'pinia';
-import SecureLS from 'secure-ls';
+import { createPinia, setActivePinia } from 'pinia';
 
 let pinia: Pinia;
+
+export function getPinia() {
+  return pinia;
+}
+
+export { pinia };
 
 export interface InitStoreOptions {
   /**
@@ -20,28 +24,13 @@ export interface InitStoreOptions {
 export async function initStores(app: App, options: InitStoreOptions) {
   const { createPersistedState } = await import('pinia-plugin-persistedstate');
   pinia = createPinia();
+  setActivePinia(pinia);
   const { namespace } = options;
-  const ls = new SecureLS({
-    encodingType: 'aes',
-    encryptionSecret: import.meta.env.VITE_APP_STORE_SECURE_KEY,
-    isCompression: true,
-    // @ts-ignore secure-ls does not have a type definition for this
-    metaKey: `${namespace}-secure-meta`,
-  });
   pinia.use(
     createPersistedState({
       // key $appName-$store.id
       key: (storeKey) => `${namespace}-${storeKey}`,
-      storage: import.meta.env.DEV
-        ? localStorage
-        : {
-            getItem(key) {
-              return ls.get(key);
-            },
-            setItem(key, value) {
-              ls.set(key, value);
-            },
-          },
+      storage: localStorage,
     }),
   );
   app.use(pinia);
@@ -53,8 +42,12 @@ export function resetAllStores() {
     console.error('Pinia is not installed');
     return;
   }
-  const allStores = (pinia as any)._s;
+  const allStores = (pinia as any)._s || new Map();
   for (const [_key, store] of allStores) {
-    store.$reset();
+    if (store && typeof store.$reset === 'function') {
+      try {
+        store.$reset();
+      } catch (_) {}
+    }
   }
 }

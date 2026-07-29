@@ -9,6 +9,22 @@ export default defineConfig(async () => {
   return {
     application: {},
     vite: {
+      resolve: {
+        alias: [
+          {
+            find: /^pinia$/,
+            replacement: resolve(__dirname, '../../node_modules/pinia/dist/pinia.mjs'),
+          },
+          {
+            find: /^vue-router$/,
+            replacement: resolve(__dirname, '../../node_modules/vue-router/dist/vue-router.mjs'),
+          },
+          {
+            find: /^vue$/,
+            replacement: resolve(__dirname, '../../node_modules/vue/dist/vue.runtime.esm-bundler.js'),
+          },
+        ],
+      },
       define: {
         // 注入项目根路径到运行时（ruoyi-admin目录层级）
         __PROJECT_ROOT__: JSON.stringify((() => {
@@ -40,6 +56,8 @@ export default defineConfig(async () => {
         noExternal: ['jiti'],
       },
       build: {
+        minify: false,
+        sourcemap: true,
         commonjsOptions: {
           transformMixedEsModules: true,
         },
@@ -47,6 +65,17 @@ export default defineConfig(async () => {
           external: [
             /node_modules\/jiti\//,
           ],
+          output: {
+            manualChunks: {
+              'vendor-core': [
+                'vue',
+                'vue-router',
+                'pinia',
+                'pinia-plugin-persistedstate',
+                '@vben/stores',
+              ],
+            },
+          },
         },
         target: 'es2022',
       },

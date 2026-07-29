@@ -2,7 +2,6 @@ import type { LoginAndRegisterParams } from '@vben/common-ui';
 import type { UserInfo } from '@vben/types';
 
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/constants';
 import { preferences, updatePreferences } from '@vben/preferences';
@@ -23,7 +22,6 @@ import { useDictStore } from './dict';
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
   const userStore = useUserStore();
-  const router = useRouter();
 
   const loginLoading = ref(false);
 
@@ -60,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (accessStore.loginExpired) {
         accessStore.setLoginExpired(false);
       } else {
+        const { router } = await import('#/router');
         onSuccess
           ? await onSuccess?.()
           : await router.push(preferences.app.defaultHomePath);
@@ -99,6 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
       resetAllStores();
       accessStore.setLoginExpired(false);
 
+      const { router } = await import('#/router');
       // 回登陆页带上当前路由地址
       await router.replace({
         path: LOGIN_PATH,

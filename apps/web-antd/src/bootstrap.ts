@@ -2,7 +2,6 @@ import { createApp, watchEffect } from 'vue';
 
 import { registerAccessDirective } from '@vben/access';
 import { registerLoadingDirective } from '@vben/common-ui/es/loading';
-import { preferences } from '@vben/preferences';
 import { initStores } from '@vben/stores';
 import '@vben/styles';
 import '@vben/styles/antd';
@@ -15,7 +14,6 @@ import { $t, setupI18n } from '#/locales';
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
-import { router } from './router';
 
 async function bootstrap(namespace: string) {
   // 初始化组件适配器
@@ -43,11 +41,11 @@ async function bootstrap(namespace: string) {
     spinning: 'spinning',
   });
 
+  // 配置 pinia-store (优先初始化，供后续 i18n 及组件使用)
+  const pinia = await initStores(app, { namespace });
+
   // 国际化 i18n 配置
   await setupI18n(app);
-
-  // 配置 pinia-tore
-  await initStores(app, { namespace });
 
   // 处理从问答客户端 (5173) 单点跳转回来的免登 Token
   try {
@@ -56,7 +54,7 @@ async function bootstrap(namespace: string) {
     if (token) {
       const cleanToken = decodeURIComponent(token).replace(/^Bearer\s+/i, '');
       const { useAccessStore } = await import('@vben/stores');
-      useAccessStore().setAccessToken(cleanToken);
+      useAccessStore(pinia).setAccessToken(cleanToken);
       const cleanUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
     }
@@ -71,7 +69,9 @@ async function bootstrap(namespace: string) {
   const { initTippy } = await import('@vben/common-ui/es/tippy');
   initTippy(app);
 
-  // 配置路由及路由守卫
+  // 配置路由及路由守卫，显式注入已初始化的 pinia 实例
+  const { createRouterGuard, router } = await import('./router');
+  createRouterGuard(router, pinia);
   app.use(router);
 
   // 配置Motion插件
@@ -79,7 +79,8 @@ async function bootstrap(namespace: string) {
   app.use(MotionPlugin);
 
   // 动态更新标题
-  watchEffect(() => {
+  watchEffect(async () => {
+    const { preferences } = await import('@vben/preferences');
     if (preferences.app.dynamicTitle) {
       const routeTitle = router.currentRoute.value.meta?.title;
       const pageTitle =
