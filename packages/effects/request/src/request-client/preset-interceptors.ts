@@ -109,6 +109,9 @@ export const authenticateResponseInterceptor = ({
   };
 };
 
+let lastErrorTime = 0;
+let lastErrorMessage = '';
+
 export const errorMessageResponseInterceptor = (
   makeErrorMessage?: MakeErrorMessageFn,
 ): ResponseInterceptorConfig => {
@@ -125,41 +128,46 @@ export const errorMessageResponseInterceptor = (
       } else if (error?.message?.includes?.('timeout')) {
         errMsg = $t('ui.fallback.http.requestTimeout');
       }
-      if (errMsg) {
+
+      if (!errMsg) {
+        const status = error?.response?.status;
+        switch (status) {
+          case 400: {
+            errMsg = $t('ui.fallback.http.badRequest');
+            break;
+          }
+          case 401: {
+            errMsg = $t('ui.fallback.http.unauthorized');
+            break;
+          }
+          case 403: {
+            errMsg = $t('ui.fallback.http.forbidden');
+            break;
+          }
+          case 404: {
+            errMsg = $t('ui.fallback.http.notFound');
+            break;
+          }
+          case 408: {
+            errMsg = $t('ui.fallback.http.requestTimeout');
+            break;
+          }
+          default: {
+            errMsg = $t('ui.fallback.http.internalServerError');
+          }
+        }
+      }
+
+      const now = Date.now();
+      // 1.5 秒内并发错误提示强效防抖与去重，避免网络异常或服务重启时弹窗连环叠加
+      if (now - lastErrorTime > 1500 || lastErrorMessage !== errMsg) {
+        lastErrorTime = now;
+        lastErrorMessage = errMsg;
         makeErrorMessage?.(errMsg, error);
-        return Promise.reject(error);
       }
 
-      let errorMessage = '';
-      const status = error?.response?.status;
-
-      switch (status) {
-        case 400: {
-          errorMessage = $t('ui.fallback.http.badRequest');
-          break;
-        }
-        case 401: {
-          errorMessage = $t('ui.fallback.http.unauthorized');
-          break;
-        }
-        case 403: {
-          errorMessage = $t('ui.fallback.http.forbidden');
-          break;
-        }
-        case 404: {
-          errorMessage = $t('ui.fallback.http.notFound');
-          break;
-        }
-        case 408: {
-          errorMessage = $t('ui.fallback.http.requestTimeout');
-          break;
-        }
-        default: {
-          errorMessage = $t('ui.fallback.http.internalServerError');
-        }
-      }
-      makeErrorMessage?.(errorMessage, error);
       return Promise.reject(error);
     },
   };
 };
+
