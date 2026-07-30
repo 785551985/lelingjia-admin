@@ -42,6 +42,11 @@ export function infoAdd(data: InfoForm) {
   return requestClient.postWithMsg<void>('/system/info', data);
 }
 
+/** 新增知识库并返回完整 VO（含新生成的 id，供后续挂载附件使用） */
+export function infoAddWithId(data: InfoForm) {
+  return requestClient.post<InfoVO>('/system/info', data);
+}
+
 /**
  * 更新知识库
  * @param data

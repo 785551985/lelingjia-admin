@@ -4,20 +4,34 @@ import type { VbenFormProps } from '@vben/common-ui';
 import type { VxeGridProps } from '#/adapter/vxe-table';
 import type { AgentVO } from '#/api/agent/agent/model';
 
-import { Page, useVbenDrawer } from '@vben/common-ui';
+import { Page, useVbenDrawer, useVbenModal } from '@vben/common-ui';
 import { getVxePopupContainer } from '@vben/utils';
 
-import { Modal, Popconfirm, Space } from 'ant-design-vue';
+import {
+  AuditOutlined,
+  BulbOutlined,
+  CustomerServiceOutlined,
+  RobotOutlined,
+  SafetyOutlined,
+  ShoppingOutlined,
+  SolutionOutlined,
+  UserOutlined,
+} from '@ant-design/icons-vue';
+import { message, Modal, Popconfirm, Space } from 'ant-design-vue';
 
 import { useVbenVxeGrid, vxeCheckboxChecked } from '#/adapter/vxe-table';
 import {
+  agentAdd,
   agentExport,
   agentList,
   agentRemove,
 } from '#/api/agent/agent';
+import { infoList } from '#/api/knowledge/info';
+import { modelList } from '#/api/chat/model';
 import { commonDownloadExcel } from '#/utils/file/download';
 
 import agentDrawer from './agent-drawer.vue';
+import AgentTemplateModal from './AgentTemplateModal.vue';
 import { columns, querySchema } from './data';
 
 const formOptions: VbenFormProps = {
@@ -67,9 +81,17 @@ const [AgentDrawer, drawerApi] = useVbenDrawer({
   connectedComponent: agentDrawer,
 });
 
+const [TplModal, tplModalApi] = useVbenModal({
+  connectedComponent: AgentTemplateModal,
+});
+
 function handleAdd() {
   drawerApi.setData({});
   drawerApi.open();
+}
+
+function handleAddTemplate() {
+  tplModalApi.open();
 }
 
 async function handleEdit(record: AgentVO) {
@@ -123,12 +145,34 @@ function handleDownloadExcel() {
           </a-button>
           <a-button
             type="primary"
+            ghost
+            v-access:code="['agent:agent:add']"
+            @click="handleAddTemplate"
+          >
+            套用预设智能体模板
+          </a-button>
+          <a-button
+            type="primary"
             v-access:code="['agent:agent:add']"
             @click="handleAdd"
           >
             {{ $t('pages.common.add') }}
           </a-button>
         </Space>
+      </template>
+      <template #agentShow="{ row }">
+        <div class="flex items-center justify-center">
+          <RobotOutlined v-if="row.agentShow === 'RobotOutlined'" class="text-blue-500 text-lg" />
+          <CustomerServiceOutlined v-else-if="row.agentShow === 'CustomerServiceOutlined'" class="text-emerald-500 text-lg" />
+          <SolutionOutlined v-else-if="row.agentShow === 'SolutionOutlined'" class="text-amber-500 text-lg" />
+          <ShoppingOutlined v-else-if="row.agentShow === 'ShoppingOutlined'" class="text-purple-500 text-lg" />
+          <AuditOutlined v-else-if="row.agentShow === 'AuditOutlined'" class="text-rose-500 text-lg" />
+          <UserOutlined v-else-if="row.agentShow === 'UserOutlined'" class="text-indigo-500 text-lg" />
+          <BulbOutlined v-else-if="row.agentShow === 'BulbOutlined'" class="text-yellow-500 text-lg" />
+          <SafetyOutlined v-else-if="row.agentShow === 'SafetyOutlined'" class="text-cyan-500 text-lg" />
+          <img v-else-if="row.agentShow && row.agentShow.startsWith('http')" :src="row.agentShow" class="w-5 h-5 rounded-full object-cover" />
+          <RobotOutlined v-else class="text-blue-500 text-lg" />
+        </div>
       </template>
       <template #action="{ row }">
         <Space>
@@ -156,5 +200,6 @@ function handleDownloadExcel() {
       </template>
     </BasicTable>
     <AgentDrawer @reload="tableApi.query()" />
+    <TplModal @reload="tableApi.query()" />
   </Page>
 </template>

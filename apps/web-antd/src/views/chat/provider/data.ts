@@ -44,6 +44,7 @@ export const columns: VxeGridProps['columns'] = [
   {
     title: 'API地址',
     field: 'apiHost',
+    slots: { default: 'apiHost' },
   },
   {
     title: '备注',

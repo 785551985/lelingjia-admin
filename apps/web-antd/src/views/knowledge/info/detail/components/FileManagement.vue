@@ -18,14 +18,15 @@ import {
   Drawer,
   Tabs,
   TabPane,
+  Input,
 } from 'ant-design-vue';
-import { InboxOutlined, CopyOutlined, DownloadOutlined, FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons-vue';
+import { InboxOutlined, CopyOutlined, DownloadOutlined, FullscreenOutlined, FullscreenExitOutlined, SaveOutlined } from '@ant-design/icons-vue';
 import { renderAsync } from 'docx-preview';
 import * as XLSX from 'xlsx';
 import { useAppConfig } from '@vben/hooks';
 import { useAccessStore } from '@vben/stores';
 import { attachList, attachRemove, attachParse, attachReparseKnowledge } from '#/api/knowledge/attach';
-import { fragmentList } from '#/api/knowledge/fragment';
+import { fragmentAdd, fragmentList, fragmentUpdate } from '#/api/knowledge/fragment';
 import { ossInfo, checkLoginBeforeDownload, ossDownload } from '#/api/system/oss';
 import { downloadByUrl } from '#/utils/file/download';
 import { stringify } from '@vben/request';
@@ -282,8 +283,59 @@ function isOfficeFile(fileSuffix: string) {
   return ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'].some(t => suffix.includes(t));
 }
 
+const currentViewingRecord = ref<any>(null);
+const currentFragmentRecord = ref<any>(null);
+const savingFragment = ref(false);
+
+async function handleSaveAndReparse() {
+  if (!previewTextContent.value || !previewTextContent.value.trim()) {
+    message.warning('预览或修改文本不能为空！');
+    return;
+  }
+  try {
+    savingFragment.value = true;
+    message.loading({ content: '正在保存并发起新一轮向量解析...', key: 'save-frag' });
+
+    let cleanText = previewTextContent.value
+      .replace(/^【分块切片 #\d+】\s*\n/gm, '')
+      .replace(/^[=]{20,}\s*$/gm, '')
+      .trim();
+
+    if (currentFragmentRecord.value && currentFragmentRecord.value.id) {
+      await fragmentUpdate({
+        id: currentFragmentRecord.value.id,
+        knowledgeId: currentFragmentRecord.value.knowledgeId || currentViewingRecord.value?.knowledgeId,
+        docId: currentFragmentRecord.value.docId || currentViewingRecord.value?.docId,
+        fid: currentFragmentRecord.value.fid || `frag_${Date.now()}`,
+        idx: currentFragmentRecord.value.idx !== undefined ? Number(currentFragmentRecord.value.idx) : 0,
+        content: cleanText,
+      } as any);
+    } else if (currentViewingRecord.value && currentViewingRecord.value.docId) {
+      await fragmentAdd({
+        knowledgeId: currentViewingRecord.value.knowledgeId,
+        docId: currentViewingRecord.value.docId,
+        content: cleanText,
+        fid: `frag_${Date.now()}`,
+        idx: 0,
+      } as any);
+    }
+
+    if (currentViewingRecord.value && currentViewingRecord.value.id) {
+      await attachParse(currentViewingRecord.value.id);
+    }
+
+    message.success({ content: '已成功更新范本文本并完成矢量解析（已自动覆盖旧内容）！', key: 'save-frag' });
+    loadAttachments();
+  } catch (err: any) {
+    message.error({ content: `保存失败: ${err?.message || '网络错误'}`, key: 'save-frag' });
+  } finally {
+    savingFragment.value = false;
+  }
+}
+
 async function handleViewFile(record: any) {
-  if (!record.ossId) return message.error('文件信息缺失');
+  currentViewingRecord.value = record;
+  currentFragmentRecord.value = null;
   fileDetailLoading.value = true;
   fileDetailVisible.value = true;
   previewTextContent.value = '';
@@ -291,8 +343,38 @@ async function handleViewFile(record: any) {
   sheetNames.value = [];
   currentSheet.value = '';
   excelWorkbook.value = null;
-  activePreviewTab.value = 'native';
-  
+  activePreviewTab.value = record.ossId ? 'native' : 'fragment';
+
+  // 1. 优先拉取 AI 训练切片分块 (必须 await，防止内嵌范本因异步加载未完而预览空白)
+  if (record.docId) {
+    try {
+      const frags: any = await fragmentList({ docId: record.docId, pageSize: 200 });
+      const rows = frags?.rows || (Array.isArray(frags) ? frags : []);
+      if (rows.length > 0) {
+        currentFragmentRecord.value = rows[0];
+        previewTextContent.value = rows
+          .map((r: any) => `【分块切片 #${Number(r.idx) + 1}】\n${r.content}`)
+          .join('\n\n' + '='.repeat(40) + '\n\n');
+      }
+    } catch (e) {
+      console.warn('拉取切片文本失败', e);
+    }
+  }
+
+  // 2. 无 ossId 的场景（如预设范本模版）
+  if (!record.ossId) {
+    fileDetailData.value = {
+      originalName: record.name,
+      fileName: record.name,
+      fileSuffix: record.type || 'md',
+      url: '',
+      createTime: record.createTime,
+    };
+    fileDetailLoading.value = false;
+    return;
+  }
+
+  // 3. 有 ossId 的场景（正常对象存储拉取）
   try {
     const res = await ossInfo(record.ossId);
     if (res && res.length > 0 && res[0]) {
@@ -301,24 +383,19 @@ async function handleViewFile(record: any) {
       const suffix = (firstItem.fileSuffix || record.type || '').toLowerCase();
       const fileUrl = firstItem.url || '';
 
-      // 异步读取 RAG 提取的切片文本（作为【AI分块】标签页数据）
-      fragmentList({ docId: record.docId, pageSize: 200 }).then(frags => {
-        const rows = frags.rows || [];
-        if (rows.length > 0) {
-          previewTextContent.value = rows.map((r: any) => `【切片 #${Number(r.idx) + 1}】\n${r.content}`).join('\n\n' + '='.repeat(40) + '\n\n');
-        }
-      }).catch(e => console.warn('拉取切片文本失败', e));
-
-      // 1. 纯文本 / 代码文件
+      // 纯文本 / 代码文件
       if (isTextFile(suffix)) {
         try {
           const blob = await getFileBlob(record.ossId, fileUrl);
-          previewTextContent.value = await blob.text();
+          const txt = await blob.text();
+          if (txt) {
+            previewTextContent.value = txt;
+          }
         } catch (e) {
           console.warn('拉取纯文本内容失败:', e);
         }
-      } 
-      // 2. Word 文档 (.docx) 真实原生渲染
+      }
+      // Word 文档 (.docx)
       else if (suffix.endsWith('.docx')) {
         isRenderingDocx.value = true;
         try {
@@ -341,7 +418,7 @@ async function handleViewFile(record: any) {
           isRenderingDocx.value = false;
         }
       }
-      // 3. Excel 电子表格 (.xlsx / .xls) 真实表格渲染
+      // Excel 电子表格 (.xlsx / .xls)
       else if (suffix.includes('xls')) {
         isRenderingExcel.value = true;
         try {
@@ -487,7 +564,7 @@ function isImageFile(fileSuffix: string) {
         :before-upload="handleBeforeUpload"
         @remove="handleRemove"
         :show-upload-list="true"
-        accept=".txt,.md,.pdf,.doc,.docx,.xlsx,.xls,.csv,.json,.java,.html,.htm,.css,.js,.ts,.py,.cpp,.c,.h,.hpp,.sql,.php,.ruby,.swift,.rs,.perl,.shell,.bat,.cmd,.xml,.yaml,.yml,.properties,.ini,.log"
+        accept=".txt,.md,.pdf,.doc,.docx,.xlsx,.xls,.csv,.json,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.flac,.mp4,.avi,.mov,.mkv,.java,.html,.htm,.css,.js,.ts,.py,.cpp,.c,.h,.hpp,.sql,.php,.ruby,.swift,.rs,.perl,.shell,.bat,.cmd,.xml,.yaml,.yml,.properties,.ini,.log"
         multiple
         name="file"
       >
@@ -495,7 +572,9 @@ function isImageFile(fileSuffix: string) {
           <InboxOutlined />
         </p>
         <p class="ant-upload-text font-medium">点击或将文件拖拽到此区域上传</p>
-        <p class="ant-upload-hint">支持多文件选择，点击下方“开始上传”按钮触发保存</p>
+        <p class="ant-upload-hint text-xs opacity-70 mt-1">
+          支持 PDF、Word、Excel、TXT、Markdown、图片、音视频及代码文件
+        </p>
       </Upload.Dragger>
 
       <div class="mt-6 flex justify-end gap-3">
@@ -626,14 +705,19 @@ function isImageFile(fileSuffix: string) {
 
             </TabPane>
 
-            <!-- Tab B: AI 提取切片 (RAG Chunks Preview) -->
-            <TabPane key="rag" tab="AI 知识切片视图">
+            <!-- Tab B: AI 提取切片 (RAG Chunks Preview & Online Editing) -->
+            <TabPane key="fragment" tab="范本文本与 AI 切片 (可直接在线修改)">
               <div class="overflow-auto" :style="{ maxHeight: isFullscreen ? 'calc(100vh - 280px)' : '600px' }">
                 <div class="text-xs font-semibold text-gray-500 mb-2 flex items-center justify-between">
-                  <span>系统底层向量库切片文本：</span>
-                  <span>共 {{ previewTextContent.length }} 字符</span>
+                  <span class="text-blue-600">✍️ 您可以在下方文本框中直接修改范本文字（修改后点击左下角保存并重新解析）：</span>
+                  <span>共 {{ (previewTextContent || '').length }} 字符</span>
                 </div>
-                <pre class="text-sm text-gray-800 font-mono whitespace-pre-wrap leading-relaxed bg-white p-4 rounded border">{{ previewTextContent || '暂无切片数据' }}</pre>
+                <Input.TextArea
+                  v-model:value="previewTextContent"
+                  :rows="16"
+                  class="font-mono text-sm leading-relaxed p-3 border-blue-200 focus:border-blue-500"
+                  placeholder="请输入或修改范本中的文本内容..."
+                />
               </div>
             </TabPane>
 
@@ -646,12 +730,28 @@ function isImageFile(fileSuffix: string) {
           <a :href="fileDetailData.url" target="_blank" class="text-blue-600 underline text-sm break-all">{{ fileDetailData.url }}</a>
         </div>
 
-        <div class="flex justify-end gap-3 pt-4 border-t">
-          <Button @click="closeFileDetail">关闭</Button>
-          <Button type="primary" @click="handleDownloadFile(fileDetailData.ossId, fileDetailData.originalName)">
-            <template #icon><DownloadOutlined /></template>
-            下载原文件
+        <div class="flex items-center justify-between pt-4 border-t">
+          <Button
+            type="primary"
+            ghost
+            :loading="savingFragment"
+            @click="handleSaveAndReparse"
+          >
+            <template #icon><SaveOutlined /></template>
+            保存当前修改并重新解析 (自动覆盖旧切片)
           </Button>
+
+          <div class="flex items-center gap-3">
+            <Button @click="closeFileDetail">关闭</Button>
+            <Button
+              v-if="fileDetailData?.ossId"
+              type="primary"
+              @click="handleDownloadFile(fileDetailData.ossId, fileDetailData.originalName)"
+            >
+              <template #icon><DownloadOutlined /></template>
+              下载原文件
+            </Button>
+          </div>
         </div>
       </div>
     </Modal>

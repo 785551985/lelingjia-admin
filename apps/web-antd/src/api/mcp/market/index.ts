@@ -108,6 +108,6 @@ export function mcpMarketBatchLoadTools(toolIds: ID[]) {
  * 获取市场工具列表
  * @param marketId 市场ID
  */
-export function mcpMarketToolList(marketId: ID) {
-  return requestClient.get<McpMarketTool[]>(`${Api.root}/${marketId}/tools`);
+export function mcpMarketToolList(marketId: ID, params?: PageQuery) {
+  return requestClient.get<McpMarketTool[]>(`${Api.root}/${marketId}/tools`, { params });
 }

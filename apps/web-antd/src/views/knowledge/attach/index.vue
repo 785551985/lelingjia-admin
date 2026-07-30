@@ -166,21 +166,33 @@ async function handleViewFile(record: any) {
     const suffix = (firstItem.fileSuffix || record.type || '').toLowerCase();
     const fileUrl = firstItem.url || '';
 
-    // 异步拉取 RAG 提取的切片文本
+    // 优先拉取 RAG 提取的切片文本 (必须 await)
     if (record.docId) {
-      fragmentList({ docId: record.docId, pageSize: 200 }).then(frags => {
-        const rows = frags.rows || [];
+      try {
+        const frags: any = await fragmentList({ docId: record.docId, pageSize: 200 });
+        const rows = frags?.rows || (Array.isArray(frags) ? frags : []);
         if (rows.length > 0) {
           previewTextContent.value = rows.map((r: any) => `【切片 #${Number(r.idx) + 1}】\n${r.content}`).join('\n\n' + '='.repeat(40) + '\n\n');
         }
-      }).catch(e => console.warn('拉取切片文本失败', e));
+      } catch (e) {
+        console.warn('拉取切片文本失败', e);
+      }
+    }
+
+    // 若无 ossId（内置预设范本等内嵌文档），直接依靠切片文本显示预览
+    if (!record.ossId) {
+      fileDetailLoading.value = false;
+      return;
     }
 
     // 1. 纯文本 / 代码文件
     if (isTextFile(suffix)) {
       try {
         const blob = await getFileBlob(record.ossId, fileUrl);
-        previewTextContent.value = await blob.text();
+        const txt = await blob.text();
+        if (txt) {
+          previewTextContent.value = txt;
+        }
       } catch (e) {
         console.warn('拉取纯文本内容失败:', e);
       }

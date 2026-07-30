@@ -135,7 +135,7 @@ async function handleSave(updated: WorkflowInfo) {
     message.success('保存成功');
 
     // 保存成功后返回列表页
-    router.push({ name: 'Workflow' });
+    router.back();
   } catch (error: any) {
     message.error(error.message || '保存失败');
   } finally {
@@ -151,7 +151,7 @@ function handleCancel() {
     okText: '确定',
     cancelText: '取消',
     onOk: () => {
-      router.push({ name: 'Workflow' });
+      router.back();
     },
   });
 }

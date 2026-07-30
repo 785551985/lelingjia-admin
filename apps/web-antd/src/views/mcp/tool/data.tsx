@@ -83,7 +83,7 @@ export const columns: VxeGridProps['columns'] = [
     slots: { default: 'action' },
     title: '操作',
     resizable: false,
-    width: 'auto',
+    width: 200,
   },
 ];
 
@@ -143,11 +143,12 @@ export const drawerSchema: FormSchemaGetter = () => [
   {
     component: 'Textarea',
     componentProps: {
+      placeholder: '{\n  "command": "npx",\n  "args": ["-y", "包名"],\n  "env": {\n    "API_KEY": "可选环境变量"\n  }\n}',
       rows: 8,
     },
     fieldName: 'configJson',
     formItemClass: 'col-span-2',
-    help: '配置信息（JSON格式），例如：{"command": "npx", "args": ["-y", "@modelcontextprotocol/server-everything"]}',
+    help: '配置信息（JSON格式），本地工具配置 command/args，远程工具配置 baseUrl',
     label: '配置信息',
   },
 ];

@@ -79,3 +79,12 @@ export function attachReparseKnowledge(knowledgeId: ID) {
     `/system/attach/reparse/knowledge/${knowledgeId}`,
   );
 }
+
+/**
+ * 初始化预设模板范本文档（创建内置 Markdown 内容并触发向量化）
+ */
+export function attachInitTemplate(knowledgeId: ID, templateKey: string, docName: string) {
+  return requestClient.post<void>('/system/attach/init-template', null, {
+    params: { knowledgeId, templateKey, docName },
+  });
+}

@@ -156,7 +156,6 @@ const { hasAccessByCodes } = useAccess();
           :disabled="!hasAccessByCodes(['mcp:tool:edit'])"
           :checked-value="'ENABLED'"
           :unchecked-value="'DISABLED'"
-          @reload="tableApi.query()"
         />
       </template>
       <template #action="{ row }">

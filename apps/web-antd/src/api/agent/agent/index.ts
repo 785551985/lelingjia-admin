@@ -62,11 +62,19 @@ export function agentAdd(data: Partial<AgentVO>) {
   return requestClient.postWithMsg<void>(Api.root, cleanAgentData(data));
 }
 
+export function agentAddSilent(data: Partial<AgentVO>) {
+  return requestClient.post<void>(Api.root, cleanAgentData(data));
+}
+
 /**
  * 修改智能体
  */
 export function agentUpdate(data: Partial<AgentVO>) {
   return requestClient.putWithMsg<void>(Api.root, cleanAgentData(data));
+}
+
+export function agentUpdateSilent(data: Partial<AgentVO>) {
+  return requestClient.put<void>(Api.root, cleanAgentData(data));
 }
 
 /**
@@ -145,8 +153,8 @@ export async function agentKnowledgeTreeOptions() {
         const node = {
           title: `${item.name}${ownerStr}`,
           label: `${item.name}${ownerStr}`,
-          value: item.id,
-          key: item.id,
+          value: String(item.id),
+          key: String(item.id),
         };
 
         const name = item.name || '';

@@ -117,6 +117,12 @@ const [AddModal, modalApi] = useVbenModal({
 });
 
 function handleAdd() {
+  modalApi.setData({ createType: 'custom' });
+  modalApi.open();
+}
+
+function handleAddTemplate() {
+  modalApi.setData({ createType: 'template' });
   modalApi.open();
 }
 
@@ -169,6 +175,14 @@ function handleDownloadExcel() {
             @click="handleMultiDelete"
           >
             {{ $t('pages.common.delete') }}
+          </a-button>
+          <a-button
+            type="primary"
+            ghost
+            v-access:code="['system:info:add']"
+            @click="handleAddTemplate"
+          >
+            套用标准模板
           </a-button>
           <a-button
             type="primary"

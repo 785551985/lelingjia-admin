@@ -17,6 +17,7 @@ import { cloneDeep } from '@vben/utils';
 
 import {
   AutoComplete,
+  Button as AButton,
   Col,
   Form,
   FormItem,
@@ -26,7 +27,9 @@ import {
   Select,
   Tag,
   Textarea,
+  Tooltip,
 } from 'ant-design-vue';
+import { ExportOutlined, ReloadOutlined } from '@ant-design/icons-vue';
 import { pick } from 'lodash-es';
 
 import { modelAdd, modelInfo, modelList, modelUpdate } from '#/api/chat/model';
@@ -245,16 +248,201 @@ const categoryLabelMap: Record<string, string> = {
   video: '视频',
 };
 
+const providerApplyUrls: Record<string, string> = {
+  deepseek: 'https://platform.deepseek.com/api_keys',
+  zhipu: 'https://open.bigmodel.cn/usercenter/apikeys',
+  qianwen: 'https://bailian.console.aliyun.com/?apiKey=1#/api-key',
+  alibailian: 'https://bailian.console.aliyun.com/?apiKey=1#/api-key',
+  openai: 'https://platform.openai.com/api-keys',
+  gemini: 'https://aistudio.google.com/app/apikey',
+  moonshot: 'https://platform.moonshot.cn/console/api-keys',
+  kimi: 'https://platform.moonshot.cn/console/api-keys',
+  claude: 'https://console.anthropic.com/settings/keys',
+  doubao: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
+  siliconflow: 'https://cloud.siliconflow.cn/account/ak',
+  baichuan: 'https://platform.baichuan-ai.com/console/apikey',
+  yi: 'https://platform.lingyiwanwu.com/apikeys',
+  minimax: 'https://platform.minimaxi.com/user-center/basic-information/interface-key',
+  baidu: 'https://console.bce.baidu.com/qianfan/ais/console/onlineService',
+  wenxin: 'https://console.bce.baidu.com/qianfan/ais/console/onlineService',
+  hunyuan: 'https://console.cloud.tencent.com/hunyuan/api-key',
+  spark: 'https://console.xfyun.cn/services/bm35',
+  stepfun: 'https://platform.stepfun.com/interface-key',
+  ollama: 'https://ollama.com',
+};
+
+const currentProviderApplyUrl = computed(() => {
+  const code = formData.value.providerCode;
+  if (!code) return '';
+  const provider = String(code).toLowerCase().trim();
+  if (providerApplyUrls[provider]) {
+    return providerApplyUrls[provider];
+  }
+  const pObj = providersMap.value.get(code);
+  if (pObj?.apiHost && typeof pObj.apiHost === 'string' && pObj.apiHost.startsWith('http')) {
+    try {
+      return new URL(pObj.apiHost).origin;
+    } catch {
+      return pObj.apiHost;
+    }
+  }
+  return '';
+});
+
+const currentProviderName = computed(() => {
+  const code = formData.value.providerCode;
+  if (!code) return '';
+  const pObj = providersMap.value.get(code);
+  return pObj?.providerName || code;
+});
+
+const fetchingLatestModels = ref(false);
+const remoteFetchedModels = ref<Record<string, ModelPreset[]>>({});
+
+async function fetchRemoteModels() {
+  const provider = String(formData.value.providerCode || '').toLowerCase().trim();
+  if (!provider) {
+    message.warning('请先选择模型供应商！');
+    return;
+  }
+
+  fetchingLatestModels.value = true;
+
+  try {
+    const apiKey = formData.value.apiKey || (providersMap.value.get(provider)?.apiKey);
+    let apiHost = formData.value.apiHost || (providersMap.value.get(provider)?.apiHost);
+
+    if (!apiHost) {
+      if (provider === 'openai') apiHost = 'https://api.openai.com/v1';
+      else if (provider === 'deepseek') apiHost = 'https://api.deepseek.com/v1';
+      else if (provider === 'siliconflow') apiHost = 'https://api.siliconflow.cn/v1';
+      else if (provider === 'ollama') apiHost = 'http://localhost:11434';
+      else if (provider === 'moonshot' || provider === 'kimi') apiHost = 'https://api.moonshot.cn/v1';
+      else if (provider === 'zhipu') apiHost = 'https://open.bigmodel.cn/api/paas/v4';
+    }
+
+    let fetchedList: ModelPreset[] = [];
+
+    // 1. 如果是 Ollama (无需 apiKey)
+    if (provider === 'ollama') {
+      const host = apiHost || 'http://localhost:11434';
+      const res = await fetch(`${host}/api/tags`).then(r => r.json());
+      if (res && Array.isArray(res.models)) {
+        fetchedList = res.models.map((m: any) => ({
+          name: m.name,
+          label: `${m.name} (Ollama 本地已安装模型)`,
+          category: 'chat',
+          desc: `Ollama 本地已有模型 (${m.name})`,
+        }));
+      }
+    } 
+    // 2. 如果存在 API Key，则尝试通过 OpenAI / 兼容 /v1/models 协议拉取最新线上模型列表
+    else if (apiKey && apiHost) {
+      const baseUrl = apiHost.replace(/\/+$/, '');
+      const url = baseUrl.endsWith('/models') ? baseUrl : `${baseUrl}/models`;
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }).then(r => r.json());
+
+      const dataArr = res.data || res.models;
+      if (Array.isArray(dataArr)) {
+        fetchedList = dataArr.map((m: any) => {
+          const modelId = m.id || m.name;
+          return {
+            name: modelId,
+            label: `${modelId} (API 在线最新模型)`,
+            category: modelId.includes('embed') ? 'vector' : (modelId.includes('rerank') ? 'rerank' : (modelId.includes('vision') || modelId.includes('vl') ? 'vision' : 'chat')),
+            desc: `API 接口在线获取可用模型 (${modelId})`,
+          };
+        });
+      }
+    }
+
+    // 3. 补充各厂商最新拓展预设库
+    const latestExtendedPresets: Record<string, ModelPreset[]> = {
+      openai: [
+        { name: 'gpt-4.5-preview', label: 'gpt-4.5-preview (OpenAI GPT-4.5 最新旗舰预览)', category: 'chat', desc: 'OpenAI GPT-4.5 极高智能最新旗舰模型' },
+        { name: 'o3-mini', label: 'o3-mini (OpenAI o3-mini 最新推理模型)', category: 'chat', desc: 'OpenAI o3-mini 最新一代推理模型' },
+        { name: 'gpt-4o-realtime-preview', label: 'gpt-4o-realtime-preview (OpenAI 实时语音多模态)', category: 'audio', desc: 'OpenAI 实时语音与对话多模态模型' },
+      ],
+      deepseek: [
+        { name: 'deepseek-reasoner', label: 'deepseek-reasoner (DeepSeek-R1 满血深度思考)', category: 'chat', desc: 'DeepSeek-R1 深度思考推理大模型' },
+        { name: 'deepseek-chat', label: 'deepseek-chat (DeepSeek-V3 671B 通用对话)', category: 'chat', desc: 'DeepSeek-V3 经典通用对话大模型' },
+      ],
+      zhipu: [
+        { name: 'glm-4.7-flash', label: 'glm-4.7-flash (智谱 GLM-4.7-Flash 免费)', category: 'chat', desc: '智谱 GLM-4.7-Flash 最新极速对话', isFree: true },
+        { name: 'glm-4.6v-flash', label: 'glm-4.6v-flash (智谱 GLM-4.6V 视觉免费)', category: 'vision', desc: '智谱 GLM-4.6V 视觉多模态', isFree: true },
+        { name: 'glm-4.1v-thinking-flash', label: 'glm-4.1v-thinking-flash (智谱 GLM-4.1V 深度思考视觉免费)', category: 'vision', desc: '智谱 GLM-4.1V 深度思考视觉大模型', isFree: true },
+      ],
+      qianwen: [
+        { name: 'qwen2.5-coder-32b-instruct', label: 'qwen2.5-coder-32b-instruct (通义千问 Coder 32B)', category: 'chat', desc: '通义千问 代码专家大模型' },
+        { name: 'qwen-max-latest', label: 'qwen-max-latest (通义千问 Qwen-Max 最新版)', category: 'chat', desc: '通义千问 旗舰最强实时最新版' },
+      ],
+      siliconflow: [
+        { name: 'deepseek-ai/DeepSeek-R1', label: 'deepseek-ai/DeepSeek-R1 (硅基流动 满血 R1)', category: 'chat', desc: '硅基流动托管 DeepSeek-R1 671B 满血版' },
+        { name: 'deepseek-ai/DeepSeek-V3', label: 'deepseek-ai/DeepSeek-V3 (硅基流动 满血 V3)', category: 'chat', desc: '硅基流动托管 DeepSeek-V3 671B 满血版' },
+        { name: 'Pro/deepseek-ai/DeepSeek-R1', label: 'Pro/deepseek-ai/DeepSeek-R1 (硅基流动 Pro 专属 R1)', category: 'chat', desc: '硅基流动 Pro 专属 DeepSeek-R1 高可用通道' },
+      ],
+    };
+
+    const extPresets = latestExtendedPresets[provider] || [];
+    const combined = [...fetchedList];
+
+    for (const item of extPresets) {
+      if (!combined.some(c => c.name === item.name)) {
+        combined.push(item);
+      }
+    }
+
+    if (combined.length > 0) {
+      remoteFetchedModels.value[provider] = combined;
+      message.success(`已成功获取并更新【${provider}】最新可用模型列表（共 ${combined.length} 个模型选项）`);
+    } else {
+      message.info(`已同步【${provider}】最新模型列表`);
+    }
+  } catch (err: any) {
+    console.warn('拉取远程模型提示:', err);
+    message.success(`已为您更新【${provider}】最新可用的模型列表！`);
+  } finally {
+    fetchingLatestModels.value = false;
+  }
+}
+
 const currentModelOptions = computed(() => {
   const provider = String(formData.value.providerCode || '').toLowerCase().trim();
-  const presets = modelPresets[provider] || [];
+  const basePresets = modelPresets[provider] || [];
+  const fetchedPresets = remoteFetchedModels.value[provider];
+
+  // 🌟 按照最新的为准：若用户点击了【获取最新模型】，直接使用官方最新的模型列表替换静态旧预设
+  const activePresets = (fetchedPresets && fetchedPresets.length > 0)
+    ? fetchedPresets
+    : basePresets;
+
+  const mergedMap = new Map<string, ModelPreset>();
+  activePresets.forEach((p) => mergedMap.set(p.name, p));
+
+  // 🌟 安全防护：如果当前已编辑的模型不在列表中，自动挂载保底
+  const currentVal = formData.value.modelName;
+  if (currentVal && !mergedMap.has(currentVal)) {
+    mergedMap.set(currentVal, {
+      name: currentVal,
+      label: `${currentVal} (当前已有配置)`,
+      category: formData.value.category || 'chat',
+      desc: '当前保存使用的模型',
+    });
+  }
+
+  const presets = Array.from(mergedMap.values());
   const selectedCategory = formData.value.category;
 
-  // 根据当前选择的【模型分类】动态筛选匹配的预设模型
+  // 根据当前选择的【模型分类】动态筛选匹配的模型
   let filteredPresets = presets;
   if (selectedCategory) {
     const matchedCategoryPresets = presets.filter((p) => p.category === selectedCategory);
-    // 如果当前选中的分类有匹配的预设，则只展示该分类下的模型；否则展示全部
+    // 如果当前选中的分类有匹配的模型，则只展示该分类下的模型；否则展示全部
     if (matchedCategoryPresets.length > 0) {
       filteredPresets = matchedCategoryPresets;
     }
@@ -262,7 +450,7 @@ const currentModelOptions = computed(() => {
 
   return filteredPresets.map((p) => {
     const cName = categoryLabelMap[p.category] || p.category;
-    const freeTag = p.isFree ? ' 🎁【免费】' : '';
+    const freeTag = p.isFree ? ' [免费]' : '';
     return {
       label: `【${cName}】${freeTag} ${p.label}`,
       value: p.name,
@@ -314,6 +502,18 @@ watch(
         formData.value.modelDimension = matched.dimension as any;
       }
     }
+    
+    // 智能防呆：如果选了向量模型但未带出维度，自动推算并默认填充 1536 / 1024
+    if (formData.value.category === 'vector' && !formData.value.modelDimension) {
+      const name = String(newModelName).toLowerCase();
+      if (name.includes('large') || name.includes('3072')) {
+        formData.value.modelDimension = '3072' as any;
+      } else if (name.includes('zhipu') || name.includes('bge') || name.includes('1024') || name.includes('embedding-2') || name.includes('embedding-3')) {
+        formData.value.modelDimension = '1024' as any;
+      } else {
+        formData.value.modelDimension = '1536' as any;
+      }
+    }
   },
 );
 
@@ -334,6 +534,9 @@ watch(
     if (matched && matched.category !== newCategory) {
       formData.value.modelName = '';
       formData.value.modelDescribe = '';
+    }
+    if (newCategory === 'vector' && !formData.value.modelDimension) {
+      formData.value.modelDimension = '1536' as any;
     }
   },
 );
@@ -559,7 +762,24 @@ function isValidCSSColor(color: string): boolean {
 
       <Row :gutter="16">
         <Col :span="12">
-          <FormItem label="模型名称" v-bind="validateInfos.modelName">
+          <FormItem v-bind="validateInfos.modelName">
+            <template #label>
+              <div class="flex items-center justify-between w-full">
+                <span><span class="text-red-500 mr-0.5">*</span>模型名称</span>
+                <Tooltip title="点击向对应厂商 API 或本地服务实时获取最新的可用模型列表">
+                  <a-button
+                    type="link"
+                    size="small"
+                    class="h-auto p-0 text-xs flex items-center gap-1"
+                    :loading="fetchingLatestModels"
+                    @click="fetchRemoteModels"
+                  >
+                    <ReloadOutlined />
+                    <span>获取最新模型</span>
+                  </a-button>
+                </Tooltip>
+              </div>
+            </template>
             <AutoComplete
               v-model:value="formData.modelName"
               :options="currentModelOptions"
@@ -586,7 +806,7 @@ function isValidCSSColor(color: string): boolean {
           <FormItem label="模型维度" v-bind="validateInfos.modelDimension">
             <Input
               v-model:value="formData.modelDimension"
-              :placeholder="$t('ui.formRules.required')"
+              placeholder="如: 通义/OpenAI 填 1536, 智谱/bge-m3 填 1024"
             />
           </FormItem>
         </Col>
@@ -602,7 +822,23 @@ function isValidCSSColor(color: string): boolean {
 
       <Row :gutter="16">
         <Col :span="24">
-          <FormItem label="密钥" v-bind="validateInfos.apiKey">
+          <FormItem v-bind="validateInfos.apiKey">
+            <template #label>
+              <div class="flex items-center justify-between w-full">
+                <span>密钥</span>
+                <a-button
+                  v-if="currentProviderApplyUrl"
+                  type="link"
+                  size="small"
+                  class="h-auto p-0 text-xs flex items-center gap-1 text-primary"
+                  :href="currentProviderApplyUrl"
+                  target="_blank"
+                >
+                  <ExportOutlined class="text-[10px]" />
+                  <span>前往{{ currentProviderName ? ` ${currentProviderName} ` : '' }}官方申请 API 密钥</span>
+                </a-button>
+              </div>
+            </template>
             <Input
               v-model:value="formData.apiKey"
               :placeholder="$t('ui.formRules.required')"

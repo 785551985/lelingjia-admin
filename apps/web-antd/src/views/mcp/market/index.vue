@@ -22,6 +22,7 @@ import { TableSwitch } from '#/components/table';
 import { commonDownloadExcel } from '#/utils/file/download';
 
 import marketDrawer from './market-drawer.vue';
+import marketToolModal from './market-tool-modal.vue';
 import { columns, querySchema } from './data';
 
 const formOptions: VbenFormProps = {
@@ -70,6 +71,15 @@ const [BasicTable, tableApi] = useVbenVxeGrid({
 const [MarketDrawer, drawerApi] = useVbenDrawer({
   connectedComponent: marketDrawer,
 });
+
+const [ToolModal, toolModalApi] = useVbenModal({
+  connectedComponent: marketToolModal,
+});
+
+function handleViewTools(row: McpMarket) {
+  toolModalApi.setData({ id: row.id, name: row.name });
+  toolModalApi.open();
+}
 
 function handleAdd() {
   drawerApi.setData({});
@@ -153,16 +163,15 @@ const { hasAccessByCodes } = useAccess();
           :disabled="!hasAccessByCodes(['mcp:market:edit'])"
           :checked-value="'ENABLED'"
           :unchecked-value="'DISABLED'"
-          @reload="tableApi.query()"
         />
       </template>
       <template #action="{ row }">
         <Space>
           <ghost-button
-            v-access:code="['mcp:market:edit']"
-            @click.stop="handleRefresh(row)"
+            v-access:code="['mcp:market:query']"
+            @click.stop="handleViewTools(row)"
           >
-            刷新
+            查看
           </ghost-button>
           <ghost-button
             v-access:code="['mcp:market:edit']"
@@ -188,5 +197,6 @@ const { hasAccessByCodes } = useAccess();
       </template>
     </BasicTable>
     <MarketDrawer @reload="tableApi.query()" />
+    <ToolModal @reload="tableApi.query()" />
   </Page>
 </template>

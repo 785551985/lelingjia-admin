@@ -4,7 +4,8 @@ import { ref } from 'vue';
 import { Page, useVbenModal, type VbenFormProps } from '@vben/common-ui';
 import { getVxePopupContainer } from '@vben/utils';
 
-import { Modal, Popconfirm, Space, Switch, Tooltip } from 'ant-design-vue';
+import { Modal, Popconfirm, Space, Switch, Tooltip, Button as AButton } from 'ant-design-vue';
+import { ExportOutlined } from '@ant-design/icons-vue';
 
 import {
   useVbenVxeGrid,
@@ -22,6 +23,52 @@ import { commonDownloadExcel } from '#/utils/file/download';
 
 import providerModal from './provider-modal.vue';
 import { columns, querySchema } from './data';
+
+const providerApplyUrls: Record<string, string> = {
+  deepseek: 'https://platform.deepseek.com/api_keys',
+  zhipu: 'https://open.bigmodel.cn/usercenter/apikeys',
+  qianwen: 'https://bailian.console.aliyun.com/?apiKey=1#/api-key',
+  alibailian: 'https://bailian.console.aliyun.com/?apiKey=1#/api-key',
+  openai: 'https://platform.openai.com/api-keys',
+  gemini: 'https://aistudio.google.com/app/apikey',
+  moonshot: 'https://platform.moonshot.cn/console/api-keys',
+  kimi: 'https://platform.moonshot.cn/console/api-keys',
+  claude: 'https://console.anthropic.com/settings/keys',
+  doubao: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
+  siliconflow: 'https://cloud.siliconflow.cn/account/ak',
+  baichuan: 'https://platform.baichuan-ai.com/console/apikey',
+  yi: 'https://platform.lingyiwanwu.com/apikeys',
+  minimax: 'https://platform.minimaxi.com/user-center/basic-information/interface-key',
+  baidu: 'https://console.bce.baidu.com/qianfan/ais/console/onlineService',
+  wenxin: 'https://console.bce.baidu.com/qianfan/ais/console/onlineService',
+  hunyuan: 'https://console.cloud.tencent.com/hunyuan/api-key',
+  spark: 'https://console.xfyun.cn/services/bm35',
+  stepfun: 'https://platform.stepfun.com/interface-key',
+  ollama: 'https://ollama.com',
+};
+
+function getProviderApplyUrl(row: any): string {
+  const code = String(row?.providerCode || '').toLowerCase().trim();
+  if (providerApplyUrls[code]) {
+    return providerApplyUrls[code];
+  }
+  if (row?.apiHost && typeof row.apiHost === 'string' && row.apiHost.startsWith('http')) {
+    try {
+      const url = new URL(row.apiHost);
+      return url.origin;
+    } catch {
+      return row.apiHost;
+    }
+  }
+  return '';
+}
+
+function handleOpenApplyPage(row: any) {
+  const url = getProviderApplyUrl(row);
+  if (url) {
+    window.open(url, '_blank');
+  }
+}
 
 // 图片预览相关配置
 const preview = ref(true);  // 默认开启预览
@@ -212,8 +259,34 @@ function handleDownloadExcel() {
           />
         </div>
       </template>
+      <template #apiHost="{ row }">
+        <div class="flex items-center gap-1.5">
+          <span class="truncate max-w-[180px]" :title="row.apiHost">{{ row.apiHost || '-' }}</span>
+          <Tooltip v-if="getProviderApplyUrl(row)" title="前往官方控制台申请 API 密钥">
+            <a 
+              class="text-xs text-primary hover:underline flex items-center gap-0.5" 
+              :href="getProviderApplyUrl(row)" 
+              target="_blank" 
+              @click.stop
+            >
+              <ExportOutlined class="text-[11px]" />
+            </a>
+          </Tooltip>
+        </div>
+      </template>
+
       <template #action="{ row }">
         <Space>
+          <a-button
+            v-if="getProviderApplyUrl(row)"
+            type="link"
+            size="small"
+            class="text-primary font-medium flex items-center gap-1 p-0 h-auto"
+            @click.stop="handleOpenApplyPage(row)"
+          >
+            <ExportOutlined class="text-xs" />
+            <span>申请 API</span>
+          </a-button>
           <ghost-button
             v-access:code="['system:provider:edit']"
             @click.stop="handleEdit(row)"

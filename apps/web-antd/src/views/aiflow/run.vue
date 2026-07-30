@@ -6,7 +6,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
-import { Empty, message, Spin } from 'ant-design-vue';
+import { Button, Empty, message, Spin } from 'ant-design-vue';
 
 import { workflowApi } from '#/api/aiflow';
 import RunDetail from '#/packages/workflow-designer/components/RunDetail.vue';
@@ -53,8 +53,10 @@ onMounted(async () => {
   <Page
     :auto-content-height="true"
     :title="`运行工作流 - ${workflow.title}`"
-    :show-back="true"
   >
+    <template #extra>
+      <Button type="primary" @click="router.back()">返回工作流列表</Button>
+    </template>
     <div v-if="loading" class="flex h-full items-center justify-center">
       <Spin size="large" tip="加载中..." />
     </div>

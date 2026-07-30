@@ -101,6 +101,52 @@ async function fetchDeptTreeData() {
   }
 }
 
+/**
+ * 根据作用域级别 (2:机构级, 3:部门级) 严格按组织层级隔离树节点
+ */
+const computedDeptTreeData = computed(() => {
+  if (!deptTreeData.value || deptTreeData.value.length === 0) return [];
+
+  const level = formData.value.scopeLevel;
+
+  const processNodeByDepth = (node: any, depth: number): any => {
+    const item = { ...node };
+    const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+
+    if (level === 2) {
+      // 机构级：只保留机构/分公司节点 (depth = 2)，剥离下属部门节点
+      if (depth === 1 && hasChildren) {
+        item.disabled = true;
+        item.disableCheckbox = true;
+        item.selectable = false;
+        item.children = node.children.map((child: any) => processNodeByDepth(child, depth + 1));
+      } else {
+        item.children = undefined;
+        item.disabled = false;
+        item.disableCheckbox = false;
+        item.selectable = true;
+        item.isLeaf = true;
+      }
+    } else if (level === 3) {
+      // 部门级：仅可选择底层具体部门节点，父级机构节点仅做展开展项
+      if (hasChildren) {
+        item.disabled = true;
+        item.disableCheckbox = true;
+        item.selectable = false;
+        item.children = node.children.map((child: any) => processNodeByDepth(child, depth + 1));
+      } else {
+        item.disabled = false;
+        item.disableCheckbox = false;
+        item.selectable = true;
+      }
+    }
+
+    return item;
+  };
+
+  return deptTreeData.value.map((rootNode: any) => processNodeByDepth(rootNode, 1));
+});
+
 function handleFileChange(info: any) {
   const file = info.file;
   if (file) {
@@ -168,7 +214,7 @@ async function handleConfirm() {
     } else if (payload.share === 2) {
       payload.scopeLevel = 2;
       payload.deptScope = '';
-    } else if (payload.scopeLevel === 3) {
+    } else if (payload.scopeLevel === 2 || payload.scopeLevel === 3) {
       if (Array.isArray(payload.deptScope)) {
         payload.deptScope = payload.deptScope.join(',');
       }
@@ -245,16 +291,18 @@ async function handleCancel() {
         </FormItem>
 
         <FormItem
-          v-if="formData.scopeLevel === 3"
-          label="指定部门"
+          v-if="formData.scopeLevel === 2 || formData.scopeLevel === 3"
+          :label="formData.scopeLevel === 2 ? '指定机构' : '指定部门'"
         >
           <TreeSelect
             v-model:value="formData.deptScope"
-            :tree-data="deptTreeData"
-            tree-checkable
+            :tree-data="computedDeptTreeData"
+            multiple
+            tree-default-expand-all
             allow-clear
-            placeholder="请选择可访问的具体部门"
+            :placeholder="formData.scopeLevel === 2 ? '请选择可访问的具体机构（支持多选）' : '请选择可访问的具体部门（支持多选）'"
             :field-names="{ label: 'label', value: 'id', children: 'children' }"
+            style="width: 100%"
           />
         </FormItem>
       </template>
