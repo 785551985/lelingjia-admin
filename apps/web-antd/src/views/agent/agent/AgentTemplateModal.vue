@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons-vue';
 import { Button, Checkbox, CheckboxGroup, message, Tag } from 'ant-design-vue';
 
-import { agentAddSilent, agentList, agentUpdateSilent } from '#/api/agent/agent';
+import { agentAddSilent, agentList, agentTemplateList, agentUpdateSilent } from '#/api/agent/agent';
 import { infoList } from '#/api/knowledge/info';
 import { modelList } from '#/api/chat/model';
 

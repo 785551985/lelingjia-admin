@@ -32,6 +32,13 @@ function cleanAgentData(data: Partial<AgentVO>) {
 }
 
 /**
+ * 平台统一预设智能体模板列表
+ */
+export function agentTemplateList() {
+  return requestClient.get<any[]>('/agent/agent/template/list');
+}
+
+/**
  * 智能体分页列表
  */
 export function agentList(params?: PageQuery) {
