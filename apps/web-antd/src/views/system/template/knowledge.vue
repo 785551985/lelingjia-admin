@@ -1,6 +1,6 @@
 <template>
   <div class="p-4">
-    <Card title="平台统一知识库预设范本管理" :bordered="false">
+    <Card title="平台统一知识库预设模板管理" :bordered="false">
       <template #extra>
         <Button type="primary" @click="handleCreate">新增预设范本</Button>
       </template>
