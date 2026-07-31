@@ -16,12 +16,10 @@ jobs:
         with:
           version: 9.12.0
 
-      - name: 3. 设置 Node.js 环境并开启依赖缓存
+      - name: 3. 设置 Node.js 环境
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: 4. 安装依赖并构建管理后台
         run: |
