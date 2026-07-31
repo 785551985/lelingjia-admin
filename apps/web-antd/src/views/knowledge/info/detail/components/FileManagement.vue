@@ -271,10 +271,14 @@ function isPdfFile(fileSuffix: string) {
   return fileSuffix ? fileSuffix.toLowerCase().includes('pdf') : false;
 }
 
-function isTextFile(fileSuffix: string) {
+function isTextFileType(fileSuffix: string) {
   if (!fileSuffix) return false;
   const suffix = fileSuffix.toLowerCase();
   return ['.txt', '.md', '.json', '.csv', '.log', '.xml', '.yaml', '.yml', '.js', '.ts', '.py', '.java', '.sql', '.html', '.css'].some(t => suffix.includes(t));
+}
+
+function isTextFile(fileSuffix: string) {
+  return isTextFileType(fileSuffix);
 }
 
 function isOfficeFile(fileSuffix: string) {
@@ -657,7 +661,7 @@ function isImageFile(fileSuffix: string) {
         </div>
 
         <!-- 3. Office 文档 (Word .docx / Excel .xlsx) / 文本高级双模式预览 -->
-        <div v-else-if="isOfficeFile(fileDetailData.fileSuffix) || previewTextContent" class="mt-4 border rounded-lg p-4 bg-gray-50">
+        <div v-else-if="!fileDetailData.ossId || isOfficeFile(fileDetailData.fileSuffix) || isTextFileType(fileDetailData.fileSuffix) || previewTextContent" class="mt-4 border rounded-lg p-4 bg-gray-50">
           <Tabs v-model:activeKey="activePreviewTab" type="card" size="small">
             
             <!-- Tab A: 原文档渲染 (Native Format Preview) -->

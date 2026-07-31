@@ -122,6 +122,10 @@ function isTextFile(fileSuffix: string) {
   return ['.txt', '.md', '.json', '.csv', '.log', '.xml', '.yaml', '.yml', '.js', '.ts', '.py', '.java', '.sql', '.html', '.css'].some(t => suffix.includes(t));
 }
 
+function isTextFile(fileSuffix: string) {
+  return isTextFileType(fileSuffix);
+}
+
 function isOfficeFile(fileSuffix: string) {
   if (!fileSuffix) return false;
   const suffix = fileSuffix.toLowerCase();
@@ -136,7 +140,7 @@ async function handleViewFile(record: any) {
   sheetNames.value = [];
   currentSheet.value = '';
   excelWorkbook.value = null;
-  activePreviewTab.value = 'native';
+  activePreviewTab.value = record.ossId ? 'native' : 'rag';
 
   try {
     let firstItem: any = null;
@@ -732,7 +736,7 @@ function handleDownloadExcel() {
         </div>
 
         <!-- 3. Office 文档 (Word .docx / Excel .xlsx) / 文本高级双模式预览 -->
-        <div v-else-if="isOfficeFile(fileDetailData.fileSuffix) || isTextFile(fileDetailData.fileSuffix) || previewTextContent" class="border rounded-lg p-3 bg-gray-50">
+        <div v-else-if="!fileDetailData.ossId || isOfficeFile(fileDetailData.fileSuffix) || isTextFileType(fileDetailData.fileSuffix) || previewTextContent" class="border rounded-lg p-3 bg-gray-50">
           <Tabs v-model:activeKey="activePreviewTab" type="card" size="small">
             
             <!-- Tab A: 原文档排版视图 -->
