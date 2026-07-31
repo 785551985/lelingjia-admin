@@ -732,7 +732,7 @@ function handleDownloadExcel() {
         </div>
 
         <!-- 3. Office 文档 (Word .docx / Excel .xlsx) / 文本高级双模式预览 -->
-        <div v-else-if="isOfficeFile(fileDetailData.fileSuffix) || previewTextContent" class="border rounded-lg p-3 bg-gray-50">
+        <div v-else-if="isOfficeFile(fileDetailData.fileSuffix) || isTextFile(fileDetailData.fileSuffix) || previewTextContent" class="border rounded-lg p-3 bg-gray-50">
           <Tabs v-model:activeKey="activePreviewTab" type="card" size="small">
             
             <!-- Tab A: 原文档排版视图 -->
