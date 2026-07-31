@@ -24,7 +24,6 @@ import {
 } from 'ant-design-vue';
 import {
   DownloadOutlined,
-  EyeOutlined,
   FileTextOutlined,
   FullscreenExitOutlined,
   FullscreenOutlined,
@@ -120,10 +119,6 @@ function isTextFile(fileSuffix: string) {
   if (!fileSuffix) return false;
   const suffix = fileSuffix.toLowerCase();
   return ['.txt', '.md', '.json', '.csv', '.log', '.xml', '.yaml', '.yml', '.js', '.ts', '.py', '.java', '.sql', '.html', '.css'].some(t => suffix.includes(t));
-}
-
-function isTextFile(fileSuffix: string) {
-  return isTextFileType(fileSuffix);
 }
 
 function isOfficeFile(fileSuffix: string) {
@@ -736,7 +731,7 @@ function handleDownloadExcel() {
         </div>
 
         <!-- 3. Office 文档 (Word .docx / Excel .xlsx) / 文本高级双模式预览 -->
-        <div v-else-if="!fileDetailData.ossId || isOfficeFile(fileDetailData.fileSuffix) || isTextFileType(fileDetailData.fileSuffix) || previewTextContent" class="border rounded-lg p-3 bg-gray-50">
+        <div v-else-if="!fileDetailData.ossId || isOfficeFile(fileDetailData.fileSuffix) || isTextFile(fileDetailData.fileSuffix) || previewTextContent" class="border rounded-lg p-3 bg-gray-50">
           <Tabs v-model:activeKey="activePreviewTab" type="card" size="small">
             
             <!-- Tab A: 原文档排版视图 -->
