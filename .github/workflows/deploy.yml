@@ -24,7 +24,7 @@ jobs:
       - name: 4. 安装依赖并构建管理后台
         run: |
           pnpm install --no-frozen-lockfile
-          pnpm run build:antd
+          ROLLUP_SKIP_NODE_NATIVE_DEPENDENCY=true pnpm run build:antd
 
       - name: 5. 打包构建产物
         run: |
