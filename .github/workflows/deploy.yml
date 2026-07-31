@@ -21,6 +21,7 @@ jobs:
         with:
           node-version: 22
           cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: 4. 安装依赖并构建管理后台
         run: |
