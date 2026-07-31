@@ -90,8 +90,7 @@
     "vite": "catalog:",
     "vitest": "catalog:",
     "vue": "catalog:",
-    "vue-tsc": "catalog:",
-    "@rollup/rollup-linux-x64-musl": "^4.30.1"
+    "vue-tsc": "catalog:"
   },
   "engines": {
     "node": ">=20.10.0",
@@ -107,7 +106,6 @@
     "overrides": {
       "@ast-grep/napi": "catalog:",
       "@ctrl/tinycolor": "catalog:",
-      "@rollup/rollup-linux-x64-gnu": "npm:@rollup/rollup-linux-x64-musl@4.62.3",
       "clsx": "catalog:",
       "esbuild": "0.25.3",
       "pinia": "catalog:",

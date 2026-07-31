@@ -1,3 +1,5 @@
+process.env.ROLLUP_SKIP_NODE_NATIVE_DEPENDENCY = 'true';
+
 import type { DefineConfig } from '../typing';
 
 import { existsSync } from 'node:fs';

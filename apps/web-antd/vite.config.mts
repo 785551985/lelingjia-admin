@@ -1,3 +1,5 @@
+process.env.ROLLUP_SKIP_NODE_NATIVE_DEPENDENCY = 'true';
+
 import { defineConfig } from '@vben/vite-config';
 import { resolve } from 'path';
 
@@ -5,7 +7,7 @@ import { resolve } from 'path';
 // import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers';
 // import Components from 'unplugin-vue-components/vite';
 
-export default defineConfig(async () => {
+export default (defineConfig(async (): Promise<any> => {
   return {
     application: {
       compress: true,
@@ -100,7 +102,7 @@ export default defineConfig(async () => {
         proxy: {
           '/api': {
             changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/api/, ''),
+            rewrite: (path: string) => path.replace(/^\/api/, ''),
             // mock代理目标地址
             target: 'http://127.0.0.1:6039',
             ws: true,
@@ -109,4 +111,4 @@ export default defineConfig(async () => {
       },
     },
   };
-});
+}) as any);
