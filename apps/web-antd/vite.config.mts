@@ -13,22 +13,6 @@ export default (defineConfig(async (): Promise<any> => {
       compress: true,
     },
     vite: {
-      resolve: {
-        alias: [
-          {
-            find: /^pinia$/,
-            replacement: resolve(__dirname, '../../node_modules/pinia/dist/pinia.mjs'),
-          },
-          {
-            find: /^vue-router$/,
-            replacement: resolve(__dirname, '../../node_modules/vue-router/dist/vue-router.mjs'),
-          },
-          {
-            find: /^vue$/,
-            replacement: resolve(__dirname, '../../node_modules/vue/dist/vue.runtime.esm-bundler.js'),
-          },
-        ],
-      },
       define: {
         // 注入项目根路径到运行时（ruoyi-admin目录层级）
         __PROJECT_ROOT__: JSON.stringify((() => {
