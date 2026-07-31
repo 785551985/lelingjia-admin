@@ -426,7 +426,7 @@ async function handleConfirm() {
           description: tpl.description,
           deptScope: (tpl.scopeLevel === 2 && currentUserDeptId.value) ? [currentUserDeptId.value].join(',') : '',
           vectorModel: 'pgvector',
-          embeddingModel: embeddingModelOptions.value[0]?.value || 'text-embedding-v3',
+          embeddingModel: embeddingModelOptions.value[0]?.value || 'embedding-3',
         };
 
         // 使用返回 id 的接口，用于后续挂载附件

@@ -28,9 +28,9 @@ import { useAccessStore } from '@vben/stores';
 import { attachList, attachRemove, attachParse, attachReparseKnowledge } from '#/api/knowledge/attach';
 import { fragmentAdd, fragmentList, fragmentUpdate } from '#/api/knowledge/fragment';
 import { ossInfo, checkLoginBeforeDownload, ossDownload } from '#/api/system/oss';
+import { requestClient } from '#/api/request';
 import { downloadByUrl } from '#/utils/file/download';
 import { stringify } from '@vben/request';
-import { requestClient } from '#/api/request';
 
 const props = defineProps<{
   knowledgeId?: string | number;
@@ -367,6 +367,18 @@ async function handleViewFile(record: any) {
 
   // 2. 无 ossId 的场景（如预设范本模版）
   if (!record.ossId) {
+    if (!previewTextContent.value) {
+      try {
+        const res: any = await requestClient.get('/system/knowledgeTemplate/list', { params: { pageSize: 100 } });
+        const rows = res.rows || res.records || (Array.isArray(res) ? res : []);
+        const matched = rows.find((item: any) => (record.name && item.templateName && record.name.includes(item.templateName.substring(0, 4))) || item.templateKey === record.type);
+        if (matched && matched.content) {
+          previewTextContent.value = matched.content;
+        }
+      } catch (e) {
+        console.warn('拉取内置范本文本失败:', e);
+      }
+    }
     fileDetailData.value = {
       originalName: record.name,
       fileName: record.name,

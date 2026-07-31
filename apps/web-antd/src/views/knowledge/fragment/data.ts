@@ -19,25 +19,25 @@ export const columns: VxeGridProps['columns'] = [
   {
     title: '所属知识库',
     field: 'knowledgeName',
-    minWidth: 160,
+    minWidth: 220,
     slots: { default: 'knowledgeName' },
   },
   {
     title: '片段序号 / 向量ID',
     field: 'idx',
-    width: 170,
+    width: 140,
     slots: { default: 'idx' },
   },
   {
     title: '文本切片内容',
     field: 'content',
-    minWidth: 320,
+    minWidth: 420,
     slots: { default: 'content' },
   },
   {
     title: '切片标记/章节',
     field: 'remark',
-    minWidth: 160,
+    width: 130,
     slots: { default: 'remark' },
   },
   {
@@ -45,6 +45,6 @@ export const columns: VxeGridProps['columns'] = [
     fixed: 'right',
     slots: { default: 'action' },
     title: '操作',
-    width: 130,
+    width: 190,
   },
 ];

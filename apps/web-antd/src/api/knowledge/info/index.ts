@@ -71,5 +71,7 @@ export function infoRemove(id: ID | IDS) {
  * @returns 检索结果
  */
 export function knowledgeRetrieval(data: any) {
-  return requestClient.post<any[]>('/system/fragment/retrieval', data);
+  return requestClient.post<any[]>('/system/fragment/retrieval', data, {
+    timeout: 60_000,
+  });
 }

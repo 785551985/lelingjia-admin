@@ -145,6 +145,14 @@ function handleMultiDelete() {
   });
 }
 
+const previewModalVisible = ref(false);
+const previewRecord = ref<any>({});
+
+function handlePreview(row: any) {
+  previewRecord.value = row;
+  previewModalVisible.value = true;
+}
+
 function handleDownloadExcel() {
   commonDownloadExcel(
     fragmentExport,
@@ -198,10 +206,13 @@ function handleDownloadExcel() {
         </Tooltip>
       </template>
 
-      <!-- 文本切片内容 -->
+      <!-- 文本切片内容（点击可直接打开完整查看预览） -->
       <template #content="{ row }">
-        <Tooltip :title="row.content" placement="topLeft">
-          <div class="truncate max-w-[360px] text-gray-700 font-mono text-xs">
+        <Tooltip title="点击查看完整文本切片预览" placement="topLeft">
+          <div
+            class="truncate w-full text-blue-700 hover:text-blue-900 cursor-pointer font-mono text-xs hover:underline transition-all"
+            @click="handlePreview(row)"
+          >
             {{ row.content }}
           </div>
         </Tooltip>
@@ -214,8 +225,11 @@ function handleDownloadExcel() {
 
       <template #action="{ row }">
         <Space>
+          <ghost-button @click.stop="handlePreview(row)">
+            查看
+          </ghost-button>
           <ghost-button
-            v-access:code="['system:fragment:edit']"
+            v-access:code="['system:fragment:edit', 'system:info:edit']"
             @click.stop="handleEdit(row)"
           >
             {{ $t('pages.common.edit') }}
@@ -228,7 +242,7 @@ function handleDownloadExcel() {
           >
             <ghost-button
               danger
-              v-access:code="['system:fragment:remove']"
+              v-access:code="['system:fragment:remove', 'system:info:remove']"
               @click.stop=""
             >
               {{ $t('pages.common.delete') }}
@@ -238,5 +252,26 @@ function handleDownloadExcel() {
       </template>
     </BasicTable>
     <FragmentModal @reload="tableApi.query()" />
+
+    <!-- 文本切片全量富文本查看预览弹窗 -->
+    <Modal
+      v-model:open="previewModalVisible"
+      title="文本切片全量内容查看与预览"
+      width="720px"
+      :footer="null"
+      destroy-on-close
+    >
+      <div class="py-2">
+        <div class="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded border border-gray-100">
+          <Tag color="cyan">{{ resolveKnowledgeName(previewRecord) }}</Tag>
+          <Tag color="purple">Chunk #{{ previewRecord.idx ?? 0 }}</Tag>
+          <Tag color="blue">{{ previewRecord.remark || '标准切片' }}</Tag>
+          <span class="text-xs text-gray-400 ml-auto">FID: {{ previewRecord.fid || '内置ID' }}</span>
+        </div>
+        <div class="p-4 bg-slate-900 text-slate-100 rounded-lg font-mono text-sm leading-relaxed whitespace-pre-wrap max-h-[500px] overflow-y-auto shadow-inner border border-slate-800">
+          {{ previewRecord.content }}
+        </div>
+      </div>
+    </Modal>
   </Page>
 </template>

@@ -34,6 +34,7 @@ import * as XLSX from 'xlsx';
 import { useVbenVxeGrid, vxeCheckboxChecked } from '#/adapter/vxe-table';
 import { attachExport, attachList, attachRemove } from '#/api/knowledge/attach';
 import { fragmentList } from '#/api/knowledge/fragment';
+import { requestClient } from '#/api/request';
 import { infoList } from '#/api/knowledge/info';
 import { ossDownload, ossInfo } from '#/api/system/oss';
 import { getDeptTree } from '#/api/system/user';
@@ -178,8 +179,20 @@ async function handleViewFile(record: any) {
       }
     }
 
-    // 若无 ossId（内置预设范本等内嵌文档），直接依靠切片文本显示预览
+    // 若无 ossId 且切片文本依然为空（内置预设范本等内嵌文档），从数据库 sys_knowledge_template 表拉取丰富范本内容展示
     if (!record.ossId) {
+      if (!previewTextContent.value) {
+        try {
+          const res: any = await requestClient.get('/system/knowledgeTemplate/list', { params: { pageSize: 100 } });
+          const rows = res.rows || res.records || (Array.isArray(res) ? res : []);
+          const matched = rows.find((item: any) => (record.name && item.templateName && record.name.includes(item.templateName.substring(0, 4))) || item.templateKey === record.type);
+          if (matched && matched.content) {
+            previewTextContent.value = matched.content;
+          }
+        } catch (e) {
+          console.warn('拉取内置范本文本失败:', e);
+        }
+      }
       fileDetailLoading.value = false;
       return;
     }

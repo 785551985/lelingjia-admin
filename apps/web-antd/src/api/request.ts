@@ -73,6 +73,8 @@ function createRequestClient(baseURL: string) {
     isReturnNativeResponse: false,
     // 需要对返回数据进行处理
     isTransformResponse: true,
+    // 全局默认请求超时时间 (30秒，适配AI大模型响应)
+    timeout: 30_000,
   });
 
   /**
