@@ -50,6 +50,7 @@
     "ant-design-vue": "catalog:",
     "cropperjs": "^1.6.2",
     "dayjs": "catalog:",
+    "docx-preview": "^0.1.15",
     "echarts": "^5.5.1",
     "lodash-es": "^4.17.21",
     "pinia": "catalog:",
