@@ -28,6 +28,7 @@ import { infoAdd, infoAddWithId, infoList } from '#/api/knowledge/info';
 import { attachInitTemplate } from '#/api/knowledge/attach';
 import { modelList } from '#/api/chat/model';
 import { getDeptTree } from '#/api/system/user';
+import { requestClient } from '#/api/request';
 
 const emit = defineEmits<{ reload: [] }>();
 
@@ -354,6 +355,26 @@ watch(() => formData.value.scopeLevel, (level) => {
   }
 });
 
+async function fetchKnowledgeTemplatesFromDb() {
+  try {
+    const res: any = await requestClient.get('/system/knowledgeTemplate/list', { params: { pageSize: 100 } });
+    const rows = res.rows || res.records || (Array.isArray(res) ? res : []);
+    if (rows.length > 0) {
+      rows.forEach((item: any) => {
+        const match = presetTemplates.find((t) => t.key === item.templateKey);
+        if (match) {
+          match.name = item.templateName || match.name;
+          if (item.category) {
+            match.badge = item.category;
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('动态获取数据库范本列表失败:', e);
+  }
+}
+
 const [BasicModal, modalApi] = useVbenModal({
   class: 'w-[600px]',
   onClosed: handleClosed,
@@ -365,7 +386,7 @@ const [BasicModal, modalApi] = useVbenModal({
     if (modalData && modalData.createType) {
       createType.value = modalData.createType;
     }
-    await Promise.all([fetchEmbeddingModels(), fetchRerankModels(), fetchDeptTreeData()]);
+    await Promise.all([fetchEmbeddingModels(), fetchRerankModels(), fetchDeptTreeData(), fetchKnowledgeTemplatesFromDb()]);
     modalApi.modalLoading(false);
   },
 });
