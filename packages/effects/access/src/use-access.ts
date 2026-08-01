@@ -31,6 +31,11 @@ function useAccess() {
    * @param codes
    */
   function hasAccessByCodes(codes: string[]) {
+    const userRoleSet = new Set(userStore.userRoles);
+    // 超级管理员/管理员拥有所有按钮操作权限
+    if (userRoleSet.has('superadmin') || userRoleSet.has('admin') || userRoleSet.has('tenant_admin')) {
+      return true;
+    }
     const userCodesSet = new Set(accessStore.accessCodes);
     /**
      * 管理员权限

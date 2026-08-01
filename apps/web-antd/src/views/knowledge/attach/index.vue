@@ -116,6 +116,63 @@ function isPdfFile(fileSuffix: string) {
   return fileSuffix ? fileSuffix.toLowerCase().includes('pdf') : false;
 }
 
+const auditModalVisible = ref(false);
+const currentAuditRow = ref<any>(null);
+const auditResult = ref<'2' | '3'>('2'); // '2': 通过发布, '3': 驳回
+const auditRemark = ref('');
+
+function handleOpenAuditModal(row: any) {
+  currentAuditRow.value = row;
+  auditResult.value = '2';
+  auditRemark.value = '';
+  auditModalVisible.value = true;
+}
+
+async function handleConfirmAudit() {
+  if (!currentAuditRow.value) return;
+  try {
+    message.loading({ content: '正在提交审核结果...', key: 'auditSubmit' });
+    const isPass = auditResult.value === '2';
+    const targetStatus = isPass ? '2' : '3';
+    const targetApprove = auditResult.value;
+    const remarkText = auditRemark.value || (isPass ? '审核通过发布' : '审核驳回');
+
+    if (currentAuditRow.value.isBatch && Array.isArray(currentAuditRow.value.batchRows)) {
+      // 批量更新分支
+      const promises = currentAuditRow.value.batchRows.map((r: any) =>
+        requestClient.put('/system/attach', {
+          ...r,
+          approveStatus: targetApprove,
+          status: targetStatus,
+          remark: remarkText,
+        })
+      );
+      await Promise.all(promises);
+      message.success({
+        content: `成功批量审核处理 ${currentAuditRow.value.batchRows.length} 份文档！`,
+        key: 'auditSubmit',
+      });
+    } else {
+      // 单条更新分支
+      await requestClient.put('/system/attach', {
+        ...currentAuditRow.value,
+        approveStatus: targetApprove,
+        status: targetStatus,
+        remark: remarkText,
+      });
+      message.success({
+        content: isPass ? '文档已顺利通过审核并上线发布！' : '文档审核驳回成功！',
+        key: 'auditSubmit',
+      });
+    }
+
+    auditModalVisible.value = false;
+    await tableApi.query();
+  } catch (e: any) {
+    message.error({ content: '提交审核失败: ' + (e?.message || '网络异常'), key: 'auditSubmit' });
+  }
+}
+
 function isTextFile(fileSuffix: string) {
   if (!fileSuffix) return false;
   const suffix = fileSuffix.toLowerCase();
@@ -504,6 +561,23 @@ function handleMultiDelete() {
   });
 }
 
+function handleBatchAudit() {
+  const rows = tableApi.grid.getCheckboxRecords();
+  if (!rows || rows.length === 0) {
+    message.warning('请先勾选需要审核的文档');
+    return;
+  }
+  // 如果当前未选择具体的行，把选中的首行作为模板触发
+  currentAuditRow.value = {
+    name: `当前勾选的 ${rows.length} 份综合文档`,
+    isBatch: true,
+    batchRows: rows,
+  };
+  auditResult.value = '2';
+  auditRemark.value = '';
+  auditModalVisible.value = true;
+}
+
 function handleDownloadExcel() {
   commonDownloadExcel(
     attachExport,
@@ -526,6 +600,14 @@ function handleDownloadExcel() {
             @click="handleDownloadExcel"
           >
             {{ $t('pages.common.export') }}
+          </a-button>
+          <a-button
+            :disabled="!vxeCheckboxChecked(tableApi)"
+            type="primary"
+            class="!bg-amber-500 hover:!bg-amber-600 !border-amber-500"
+            @click="handleBatchAudit"
+          >
+            批量审核
           </a-button>
           <a-button
             :disabled="!vxeCheckboxChecked(tableApi)"
@@ -638,6 +720,13 @@ function handleDownloadExcel() {
 
       <template #action="{ row }">
         <Space>
+          <ghost-button
+            type="primary"
+            class="!text-amber-600 !border-amber-500 hover:!bg-amber-50"
+            @click.stop="handleOpenAuditModal(row)"
+          >
+            审核
+          </ghost-button>
           <ghost-button
             type="primary"
             @click.stop="handleViewFile(row)"
@@ -810,6 +899,51 @@ function handleDownloadExcel() {
         <div v-else class="mt-4 p-4 text-center bg-gray-50 rounded border text-gray-500">
           <p class="mb-2">源文件已在存储桶中</p>
           <a :href="fileDetailData.url" target="_blank" class="text-blue-600 underline text-sm break-all">{{ fileDetailData.url }}</a>
+        </div>
+      </div>
+    </Modal>
+
+    <!-- 专业知识库文档合规审核弹窗 -->
+    <Modal
+      v-model:open="auditModalVisible"
+      title="知识库文档合规审核"
+      ok-text="确认提交"
+      cancel-text="取消"
+      :width="520"
+      @ok="handleConfirmAudit"
+    >
+      <div v-if="currentAuditRow" class="py-3">
+        <div class="mb-4 p-3 bg-gray-50 rounded border border-gray-100">
+          <p class="font-medium text-gray-800 text-sm mb-1">
+            待审核文档：<span class="text-blue-600">{{ getCleanFileName(currentAuditRow.name) }}</span>
+          </p>
+          <p class="text-xs text-gray-500">
+            所属库：{{ resolveKnowledgeName(currentAuditRow) }} | 上传时间：{{ currentAuditRow.createTime || '最近' }}
+          </p>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-xs font-semibold text-gray-600 mb-2">审核决策（选一项）：</label>
+          <div class="flex items-center gap-6">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" v-model="auditResult" value="2" class="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
+              <span class="text-sm font-medium text-emerald-700">🟢 审核通过 (批准上线发布)</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" v-model="auditResult" value="3" class="w-4 h-4 text-red-600 focus:ring-red-500" />
+              <span class="text-sm font-medium text-red-700">🔴 审核驳回 (下架整改)</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">审核意见 / 审批备注（选填）：</label>
+          <textarea
+            v-model="auditRemark"
+            rows="3"
+            class="w-full p-2.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+            placeholder="请输入审批意见、上线说明或驳回理由..."
+          ></textarea>
         </div>
       </div>
     </Modal>
