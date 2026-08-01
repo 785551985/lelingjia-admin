@@ -66,14 +66,14 @@ const modelPresets: Record<string, ModelPreset[]> = {
     { name: 'qwen-plus', label: 'qwen-plus (通义千问 Qwen-Plus 增强型)', category: 'chat', desc: '通义千问 Qwen-Plus 增强型模型' },
     { name: 'qwen-vl-max', label: 'qwen-vl-max (通义千问 视觉看图多模态)', category: 'vision', desc: '通义千问 Qwen-VL-Max 视觉看图识图多模态大模型' },
     { name: 'text-embedding-v3', label: 'text-embedding-v3 (阿里云 向量模型 1536维)', category: 'vector', desc: '阿里云 text-embedding-v3 向量模型', dimension: 1536 },
-    { name: 'gte-rerank', label: 'gte-rerank (阿里云 GTE 重排序模型)', category: 'rerank', desc: '阿里云 GTE 重排序 Rerank 模型' },
+    { name: 'gte-rerank-v2', label: 'gte-rerank-v2 (阿里云 GTE 重排序模型)', category: 'rerank', desc: '阿里云 GTE 重排序 Rerank 模型 v2 版' },
   ],
   alibailian: [
     { name: 'qwen-max', label: 'qwen-max (通义千问 Qwen-Max 旗舰最强对话)', category: 'chat', desc: '通义千问 Qwen-Max 旗舰大模型' },
     { name: 'qwen-plus', label: 'qwen-plus (通义千问 Qwen-Plus 增强型)', category: 'chat', desc: '通义千问 Qwen-Plus 增强型模型' },
     { name: 'qwen-vl-max', label: 'qwen-vl-max (通义千问 视觉看图多模态)', category: 'vision', desc: '通义千问 Qwen-VL-Max 视觉看图识图多模态大模型' },
     { name: 'text-embedding-v3', label: 'text-embedding-v3 (阿里云 向量模型 1536维)', category: 'vector', desc: '阿里云 text-embedding-v3 向量模型', dimension: 1536 },
-    { name: 'gte-rerank', label: 'gte-rerank (阿里云 GTE 重排序模型)', category: 'rerank', desc: '阿里云 GTE 重排序 Rerank 模型' },
+    { name: 'gte-rerank-v2', label: 'gte-rerank-v2 (阿里云 GTE 重排序模型)', category: 'rerank', desc: '阿里云 GTE 重排序 Rerank 模型 v2 版' },
   ],
   ollama: [
     { name: 'deepseek-r1:7b', label: 'deepseek-r1:7b (Ollama 本地 7B 推理模型)', category: 'chat', desc: 'Ollama 本地部署 DeepSeek-R1 7B' },
@@ -319,6 +319,7 @@ async function fetchRemoteModels() {
       else if (provider === 'ollama') apiHost = 'http://localhost:11434';
       else if (provider === 'moonshot' || provider === 'kimi') apiHost = 'https://api.moonshot.cn/v1';
       else if (provider === 'zhipu') apiHost = 'https://open.bigmodel.cn/api/paas/v4';
+      else if (provider === 'qianwen' || provider === 'dashscope' || provider === 'bailian' || provider.includes('阿里云')) apiHost = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     }
 
     let fetchedList: ModelPreset[] = [];

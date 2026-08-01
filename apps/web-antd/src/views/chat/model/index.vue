@@ -6,6 +6,7 @@ import { DictEnum } from '@vben/constants';
 import { getVxePopupContainer } from '@vben/utils';
 
 import { message, Modal, Popconfirm, Space, Tag } from 'ant-design-vue';
+import { requestClient } from '#/api/request';
 
 import {
   useVbenVxeGrid,
@@ -197,31 +198,35 @@ async function handleTestModel(row: any) {
       return;
     }
 
-    setTimeout(() => {
-      const delay = Math.floor(Math.random() * 150 + 120);
-      if (row.id) {
-        testStatusMap.value[row.id] = { status: 'success', latency: delay };
-        setTimeout(() => {
-          delete testStatusMap.value[row.id];
-        }, 3500);
-      }
-      message.success({
-        content: `连通测试成功！模型【${row.modelName}】响应正常，延时 ${delay}ms，密钥与额度有效！`,
-        key: 'test-model',
-        duration: 4,
-      });
-    }, 500);
-  } catch (err: any) {
+    // 真实发起后端连通性握手测试
+    const testRes = await requestClient.post(`/system/model/test/${row.id}`);
+    const resData = testRes?.data || testRes;
+    const latency = resData?.latency || 150;
+    const msgStr = resData?.msg || '响应正常，密钥与网络有效！';
+
     if (row.id) {
-      testStatusMap.value[row.id] = { status: 'error', errorMsg: err?.message || '失败' };
+      testStatusMap.value[row.id] = { status: 'success', latency };
       setTimeout(() => {
         delete testStatusMap.value[row.id];
-      }, 3500);
+      }, 4000);
     }
-    message.error({
-      content: `连通测试失败：${err?.message || '网络无法建立连接'}`,
+    message.success({
+      content: `连通测试成功！${msgStr} (延时 ${latency}ms)`,
       key: 'test-model',
       duration: 4,
+    });
+  } catch (err: any) {
+    const errorText = err?.response?.data?.msg || err?.msg || err?.message || '网络或接口连接异常';
+    if (row.id) {
+      testStatusMap.value[row.id] = { status: 'error', errorMsg: errorText };
+      setTimeout(() => {
+        delete testStatusMap.value[row.id];
+      }, 4000);
+    }
+    message.error({
+      content: `连通测试失败：${errorText}`,
+      key: 'test-model',
+      duration: 5,
     });
   }
 }

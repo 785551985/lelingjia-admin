@@ -184,9 +184,15 @@ async function fetchRerankModels() {
     const response = await modelList({ category: 'rerank', pageSize: 1000 });
     const models = Array.isArray(response) ? response : ((response as any).rows || (response as any).records || []);
     rerankModelOptions.value = models.map((model: any) => ({
-      label: model.modelDescribe || model.modelName,
+      label: `${model.modelName} ${model.modelDescribe ? `(${model.modelDescribe})` : ''}`,
       value: model.modelName,
     }));
+    if (rerankModelOptions.value.length > 0) {
+      const exists = rerankModelOptions.value.some((o: any) => o.value === formData.value.rerankModel);
+      if (!exists || !formData.value.rerankModel) {
+        formData.value.rerankModel = rerankModelOptions.value[0].value;
+      }
+    }
   } catch (error) {
     console.error('Failed to fetch rerank models:', error);
   }
@@ -220,6 +226,14 @@ async function loadData() {
         ...filterRecord,
         id: String(props.knowledgeId),
       };
+
+      // 🌟 防呆强纠偏：若历史存入的名字不在已有可用选项中，自动纠正切换为当前已配置且可用的模型
+      if (rerankModelOptions.value.length > 0) {
+        const isValid = rerankModelOptions.value.some((o: any) => o.value === formData.value.rerankModel);
+        if (!isValid || !formData.value.rerankModel) {
+          formData.value.rerankModel = rerankModelOptions.value[0].value;
+        }
+      }
       loadedSplitConfig.value = splitConfigKey(filterRecord);
     } else {
       const defaultEmbeddingModel = embeddingModelOptions.value.length > 0
